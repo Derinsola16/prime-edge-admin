@@ -1,18 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Search, Download, UserX, Trash2, ChevronDown } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 
-import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { getAdminMetrics, getAdmins, deleteAdmin } from "@/services/api/admin"
+import { Button } from "@/components/ui/button"
+import { getSessionUser } from "@/services/api/user"
+import { IAdminUser } from "@/types/admin.types"
+import { Pagination } from "@/components/shared/pagination"
 import { AdminMetrics } from "@/components/admin/admin-metrics"
-import { InviteMemberDialog } from "@/components/admin/invite-member-dialog"
-import { CreateRoleDialog } from "@/components/admin/create-role-dialog"
+import { AdminStatusBadge } from "@/components/admin/admin-status-badge"
+import { CreateAdminDialog } from "@/components/admin/create-admin-dialog"
+import { EditPermissionsDialog } from "@/components/admin/edit-permissions-dialog"
+import { ResetAdminPasswordDialog } from "@/components/admin/reset-admin-password-dialog"
+import {
+  getAdminMetrics,
+  getAdmins,
+  deleteAdmin,
+  toggleAdminStatus,
+} from "@/services/api/admin"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,26 +28,67 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export default function AdminManagementPage() {
-  const queryClient = useQueryClient()
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [roleDialogOpen, setRoleDialogOpen] = useState(false)
+const PAGE_SIZE = 10
 
-  const { data: metricsRes } = useQuery({
+export default function AdminManagementPage() {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const [page, setPage] = useState(1)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<IAdminUser | null>(null)
+  const [resetTarget, setResetTarget] = useState<IAdminUser | null>(null)
+
+  const { data: sessionRes, isLoading: sessionLoading } = useQuery({
+    queryKey: ["session-user"],
+    queryFn: getSessionUser,
+  })
+  const role = sessionRes?.data.role
+
+  useEffect(() => {
+    if (!sessionLoading && role && role !== "admin") {
+      router.replace("/dashboard")
+    }
+  }, [sessionLoading, role, router])
+
+  const { data: metrics } = useQuery({
     queryKey: ["admin-metrics"],
     queryFn: getAdminMetrics,
+    enabled: role === "admin",
   })
-  const { data: adminsRes, isLoading } = useQuery({ queryKey: ["admins"], queryFn: getAdmins })
+
+  const { data: adminsRes, isLoading } = useQuery({
+    queryKey: ["admins", page],
+    queryFn: () => getAdmins({ page, limit: PAGE_SIZE }),
+    enabled: role === "admin",
+  })
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: toggleAdminStatus,
+    onSuccess: () => {
+      toast.success("Status updated")
+      queryClient.invalidateQueries({ queryKey: ["admins"] })
+      queryClient.invalidateQueries({ queryKey: ["admin-metrics"] })
+    },
+    onError: () => toast.error("Failed to update status"),
+  })
 
   const deleteMutation = useMutation({
     mutationFn: deleteAdmin,
     onSuccess: () => {
       toast.success("Admin removed")
       queryClient.invalidateQueries({ queryKey: ["admins"] })
+      queryClient.invalidateQueries({ queryKey: ["admin-metrics"] })
     },
+    onError: () => toast.error("Failed to remove admin"),
   })
 
-  const admins = adminsRes?.data.items ?? []
+  if (sessionLoading || (role && role !== "admin")) {
+    return null
+  }
+
+  const admins = adminsRes?.items ?? []
+  const total = adminsRes?.total ?? 0
+  const pages = adminsRes?.pages ?? 1
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,93 +97,71 @@ export default function AdminManagementPage() {
           Admin Management
         </h1>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={buttonVariants({
-              className: "rounded-full bg-brand-deepblue text-primary-foreground hover:bg-brand-deepblue-hover",
-            })}
-          >
-            Add New Member
-            <ChevronDown className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setInviteOpen(true)}>
-              Invite New Team Member
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setRoleDialogOpen(true)}>
-              Create Custom Role
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="rounded-full bg-brand-deepblue text-primary-foreground hover:bg-brand-deepblue-hover"
+        >
+          Add New Admin
+        </Button>
       </div>
 
-      {metricsRes && <AdminMetrics metrics={metricsRes.data} />}
+      {metrics && <AdminMetrics metrics={metrics} />}
 
       <div>
         <h2 className="mb-3 text-lg font-semibold text-foreground">Admin List</h2>
 
         <div className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search by name title or amount" className="h-10 pl-9" />
-            </div>
-            <Button variant="outline" size="sm">
-              <Download className="size-4" />
-              Download CSV
-            </Button>
-          </div>
-
           {isLoading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Loading admins…</p>
+          ) : admins.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No admins found.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="w-8 py-3">
-                    <input type="checkbox" className="accent-brand-deepblue" />
-                  </th>
                   <th className="py-3 font-medium">Admin Name</th>
-                  <th className="py-3 font-medium">Role Access</th>
+                  <th className="py-3 font-medium">Email</th>
+                  <th className="py-3 font-medium">Role</th>
                   <th className="py-3 font-medium">Status</th>
-                  <th className="py-3 font-medium">Last Seen</th>
                   <th className="py-3 font-medium">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {admins.map(admin => (
                   <tr key={admin.id} className="border-b border-border last:border-0">
-                    <td className="py-4">
-                      <input type="checkbox" className="accent-brand-deepblue" />
+                    <td className="py-4 font-medium text-foreground">
+                      {admin.firstName} {admin.lastName}
                     </td>
-                    <td className="py-4 font-medium text-foreground">{admin.name}</td>
-                    <td className="py-4 text-muted-foreground">{admin.role}</td>
+                    <td className="py-4 text-muted-foreground">{admin.email}</td>
+                    <td className="py-4 text-muted-foreground capitalize">{admin.role}</td>
                     <td className="py-4">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "rounded-full text-xs font-medium",
-                          admin.status === "active"
-                            ? "border-success text-success"
-                            : "border-orange-400 text-orange-500"
-                        )}
-                      >
-                        {admin.status === "active" ? "Active" : "Inactive"}
-                      </Badge>
+                      <AdminStatusBadge isActive={admin.isActive} />
                     </td>
-                    <td className="py-4 text-muted-foreground">{admin.last_seen}</td>
                     <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <button aria-label="Deactivate">
-                          <UserX className="size-4 text-muted-foreground" />
-                        </button>
-                        <button
-                          aria-label="Remove"
-                          onClick={() => deleteMutation.mutate(admin.id)}
-                        >
-                          <Trash2 className="size-4 text-muted-foreground" />
-                        </button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="text-muted-foreground">
+                          <MoreHorizontal className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditTarget(admin)}>
+                            Edit Permissions
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setResetTarget(admin)}>
+                            Reset Password
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => toggleStatusMutation.mutate(admin.id)}
+                          >
+                            {admin.isActive ? "Deactivate" : "Activate"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => deleteMutation.mutate(admin.id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
@@ -142,12 +169,30 @@ export default function AdminManagementPage() {
             </table>
           )}
 
-          <p className="mt-6 text-sm text-muted-foreground">Showing 1-10 of 100 products</p>
+          {total > 0 && (
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, total)} of{" "}
+                {total} admins
+              </p>
+              <Pagination page={page} totalPages={pages} onPageChange={setPage} />
+            </div>
+          )}
         </div>
       </div>
 
-      <InviteMemberDialog open={inviteOpen} onOpenChange={setInviteOpen} />
-      <CreateRoleDialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen} />
+      <CreateAdminDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <EditPermissionsDialog
+        key={editTarget?.id ?? "none"}
+        admin={editTarget}
+        open={editTarget !== null}
+        onOpenChange={open => !open && setEditTarget(null)}
+      />
+      <ResetAdminPasswordDialog
+        admin={resetTarget}
+        open={resetTarget !== null}
+        onOpenChange={open => !open && setResetTarget(null)}
+      />
     </div>
   )
 }

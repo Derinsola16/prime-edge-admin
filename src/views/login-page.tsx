@@ -6,14 +6,12 @@ import { useForm } from "react-hook-form"
 import { AxiosError } from "axios"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { login } from "@/services/api/auth"
 import LoginForm from "@/components/auth/login-form"
-import { StorageKeys } from "@/types/storage.types"
 import { ApiErrorResponse } from "@/types/api.types"
-import { ITokens, LoginRequest, LoginResponse } from "@/types/auth.types"
-import { setCookieItem } from "@/helpers/functions/cookie"
+import { LoginRequest } from "@/types/auth.types"
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Email is invalid"),
@@ -27,6 +25,7 @@ export type LoginFormValues = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -53,20 +52,16 @@ export default function LoginPage() {
         toast.error(errorMessage)
       }
     },
-    onSuccess: async (res: LoginResponse) => {
+    onSuccess: async () => {
       toast.success("Login success!")
 
-      const tokens: ITokens = { ...res.data.tokens }
-      setCookieItem(StorageKeys.AUTHENTICATED_USER_TOKENS, tokens)
-
       form.reset()
+      await queryClient.invalidateQueries({ queryKey: ["session-user"] })
 
       const params = new URLSearchParams(window.location.search)
       const redirectUrl = params.get("redirect") || "/dashboard"
 
-      setTimeout(() => {
-        router.push(redirectUrl)
-      }, 1000)
+      router.push(redirectUrl)
     },
   })
 

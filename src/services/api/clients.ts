@@ -1,15 +1,17 @@
-import { ApiSuccessResponse } from "@/types/api.types"
+import { http } from "@/utils/axios"
+import { ApiSuccessResponse, PaginatedResponse } from "@/types/api.types"
 import {
   IClient,
   IClientActivity,
   IClientDetail,
   IClientMetrics,
+  IUserListItem,
   ITransactionDetail,
   KycStatus,
 } from "@/types/client.types"
 
-// TODO: replace with real API calls once the backend endpoint is ready.
-// import { http } from "@/utils/axios"
+// getClientById/getClientActivity/getTransactionDetail/updateKycStatus below are still
+// mocked — they need /kyc, /investment, /payment endpoints, out of scope for now.
 
 const MOCK_METRICS: IClientMetrics = {
   total_clients: 1567,
@@ -87,9 +89,65 @@ export async function getClientMetrics(): Promise<ApiSuccessResponse<IClientMetr
   return { message: "ok", data: MOCK_METRICS }
 }
 
-export async function getClients(): Promise<ApiSuccessResponse<{ items: IClient[] }>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: { items: MOCK_CLIENTS } }
+type RawUser = {
+  _id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  avatar?: string
+  address?: IUserListItem["address"]
+  emailVerification?: { isVerified: boolean }
+  isActive: boolean
+  lastLogin?: string
+  createdAt: string
+}
+
+function mapUser(raw: RawUser): IUserListItem {
+  return {
+    id: raw._id,
+    firstName: raw.firstName,
+    lastName: raw.lastName,
+    email: raw.email,
+    phone: raw.phone,
+    avatar: raw.avatar,
+    address: raw.address,
+    isVerified: raw.emailVerification?.isVerified ?? false,
+    isActive: raw.isActive,
+    lastLogin: raw.lastLogin,
+    createdAt: raw.createdAt,
+  }
+}
+
+export async function getUsers(params: {
+  page?: number
+  limit?: number
+  isVerified?: boolean
+}): Promise<{ items: IUserListItem[]; total: number; page: number; pages: number; limit: number }> {
+  const res = await http.get<PaginatedResponse<RawUser>>("/admin/users", { params })
+
+  return {
+    items: res.data.data.map(mapUser),
+    total: res.data.pagination.total,
+    page: res.data.pagination.page,
+    pages: res.data.pagination.pages,
+    limit: res.data.pagination.limit,
+  }
+}
+
+export async function getUserById(id: string): Promise<ApiSuccessResponse<IUserListItem>> {
+  const res = await http.get<ApiSuccessResponse<RawUser>>(`/admin/users/${id}`)
+  return { message: res.data.message, data: mapUser(res.data.data) }
+}
+
+export async function deleteUser(id: string): Promise<ApiSuccessResponse<{ id: string }>> {
+  const res = await http.delete<ApiSuccessResponse<unknown>>(`/admin/users/${id}`)
+  return { message: res.data.message, data: { id } }
+}
+
+export async function toggleUserStatus(id: string): Promise<ApiSuccessResponse<IUserListItem>> {
+  const res = await http.patch<ApiSuccessResponse<RawUser>>(`/admin/users/${id}/toggle-status`)
+  return { message: res.data.message, data: mapUser(res.data.data) }
 }
 
 export async function getClientById(id: string): Promise<ApiSuccessResponse<IClientDetail>> {

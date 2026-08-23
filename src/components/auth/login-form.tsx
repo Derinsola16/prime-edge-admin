@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useState } from "react"
 import { AxiosError } from "axios"
 import { UseMutationResult } from "@tanstack/react-query"
@@ -105,12 +104,9 @@ export default function LoginForm({ form, mutation, onSubmit }: Props) {
             )}
           />
 
-          <Link
-            href="/forgot-password"
-            className="inline-block text-sm font-medium text-brand-skyblue hover:underline"
-          >
-            Change password?
-          </Link>
+          <p className="text-sm text-muted-foreground">
+            Forgot your password? Contact a super-admin to reset it.
+          </p>
 
           <FormField
             control={form.control}

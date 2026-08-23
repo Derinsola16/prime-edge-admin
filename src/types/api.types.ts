@@ -15,3 +15,17 @@ export interface ICursorPagination {
   prev_page_cursor: string;
   next_page_cursor: string;
 }
+
+export interface IPageInfo {
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export interface PaginatedResponse<T> {
+  success: boolean;
+  message: string;
+  data: T[];
+  pagination: IPageInfo;
+}

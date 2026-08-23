@@ -1,88 +1,115 @@
-import { ApiSuccessResponse } from "@/types/api.types"
-import { IAdminMetrics, IAdminUser, IPermissionModule, IRoleOption } from "@/types/admin.types"
+import { http } from "@/utils/axios"
+import { ApiSuccessResponse, PaginatedResponse } from "@/types/api.types"
+import {
+  IAdminMetrics,
+  IAdminUser,
+  ICreateAdminRequest,
+  IUpdateAdminRequest,
+  AdminRole,
+} from "@/types/admin.types"
 
-// TODO: replace with real API calls once the backend endpoint is ready.
-// import { http } from "@/utils/axios"
+export {
+  ROLE_OPTIONS,
+  PERMISSION_OPTIONS,
+} from "@/types/admin.types"
 
-const MOCK_METRICS: IAdminMetrics = {
-  total_admin: 5,
-  finance_admin: 2,
-  client_managers: 2,
-  super_admin: 1,
+type RawAdmin = {
+  _id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  role: AdminRole
+  permissions: IAdminUser["permissions"]
+  avatar?: string
+  isActive: boolean
+  createdAt: string
 }
 
-const MOCK_ADMINS: IAdminUser[] = [
-  { id: "a1", name: "Hannah Abraham", role: "Super Admin", status: "active", last_seen: "2 minutes ago" },
-  { id: "a2", name: "Mary Martha", role: "Finance Admin", status: "inactive", last_seen: "2 minutes ago" },
-  { id: "a3", name: "Berks Gold", role: "Investor Admin", status: "active", last_seen: "2 minutes ago" },
-  { id: "a4", name: "Grace Ajah", role: "Client Support", status: "active", last_seen: "2 minutes ago" },
-  { id: "a5", name: "Berks Gold", role: "Investor Admin", status: "active", last_seen: "2 minutes ago" },
-  { id: "a6", name: "Berks Gold", role: "Investor Admin", status: "active", last_seen: "2 minutes ago" },
-]
-
-export const ROLE_OPTIONS: IRoleOption[] = [
-  { id: "super_admin", label: "Super Admin", description: "Full system access and user management capabilities.", icon: "shield" },
-  { id: "finance_manager", label: "Finance Manager", description: "Access to payroll, billing reports, and budgets.", icon: "credit-card" },
-  { id: "compliance_officer", label: "Compliance Officer", description: "Audit logs, regulatory reporting, and data privacy.", icon: "shield-check" },
-  { id: "viewer", label: "Viewer", description: "Read-only access across modules. Cannot edit.", icon: "eye" },
-]
-
-export const PERMISSION_MODULES: IPermissionModule[] = [
-  {
-    id: "clients",
-    label: "Clients Manager",
-    icon: "users",
-    permissions: ["View Clients", "Approve KYC", "Edit Profile", "Export Data"],
-  },
-  {
-    id: "properties",
-    label: "Property Management",
-    icon: "briefcase",
-    permissions: ["View Inventory", "Add New Property", "Update Construction Progress", "Manage Financials"],
-  },
-  {
-    id: "financials",
-    label: "Financials",
-    icon: "landmark",
-    permissions: ["View Ledger", "Reconcile Payments", "Process Payouts"],
-  },
-  {
-    id: "system",
-    label: "System",
-    icon: "settings",
-    permissions: ["View Audit Logs", "Manage Team", "Edit System Settings"],
-  },
-]
-
-export async function getAdminMetrics(): Promise<ApiSuccessResponse<IAdminMetrics>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: MOCK_METRICS }
+function mapAdmin(raw: RawAdmin): IAdminUser {
+  return {
+    id: raw._id,
+    firstName: raw.firstName,
+    lastName: raw.lastName,
+    email: raw.email,
+    phone: raw.phone,
+    role: raw.role,
+    permissions: raw.permissions,
+    avatar: raw.avatar,
+    isActive: raw.isActive,
+    createdAt: raw.createdAt,
+  }
 }
 
-export async function getAdmins(): Promise<ApiSuccessResponse<{ items: IAdminUser[] }>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: { items: MOCK_ADMINS } }
+export async function getAdmins(params: {
+  page?: number
+  limit?: number
+  role?: AdminRole
+  isActive?: boolean
+}): Promise<{ items: IAdminUser[]; total: number; page: number; pages: number; limit: number }> {
+  const res = await http.get<PaginatedResponse<RawAdmin>>("/super-admin/admins", { params })
+
+  return {
+    items: res.data.data.map(mapAdmin),
+    total: res.data.pagination.total,
+    page: res.data.pagination.page,
+    pages: res.data.pagination.pages,
+    limit: res.data.pagination.limit,
+  }
 }
 
-export async function inviteTeamMember(
-  payload: Record<string, unknown>
-): Promise<ApiSuccessResponse<{ id: string }>> {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  void payload
-  return { message: "ok", data: { id: `a${Date.now()}` } }
+export async function getAdminById(id: string): Promise<ApiSuccessResponse<IAdminUser>> {
+  const res = await http.get<ApiSuccessResponse<RawAdmin>>(`/super-admin/admins/${id}`)
+  return { message: res.data.message, data: mapAdmin(res.data.data) }
 }
 
-export async function createCustomRole(
-  payload: Record<string, unknown>
-): Promise<ApiSuccessResponse<{ id: string }>> {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  void payload
-  return { message: "ok", data: { id: `role${Date.now()}` } }
+export async function createAdmin(
+  payload: ICreateAdminRequest
+): Promise<ApiSuccessResponse<IAdminUser>> {
+  const res = await http.post<ApiSuccessResponse<RawAdmin>>("/super-admin/admins", payload)
+  return { message: res.data.message, data: mapAdmin(res.data.data) }
+}
+
+export async function updateAdmin(
+  id: string,
+  payload: IUpdateAdminRequest
+): Promise<ApiSuccessResponse<IAdminUser>> {
+  const res = await http.put<ApiSuccessResponse<RawAdmin>>(`/super-admin/admins/${id}`, payload)
+  return { message: res.data.message, data: mapAdmin(res.data.data) }
 }
 
 export async function deleteAdmin(id: string): Promise<ApiSuccessResponse<{ id: string }>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  const index = MOCK_ADMINS.findIndex(a => a.id === id)
-  if (index >= 0) MOCK_ADMINS.splice(index, 1)
-  return { message: "ok", data: { id } }
+  const res = await http.delete<ApiSuccessResponse<unknown>>(`/super-admin/admins/${id}`)
+  return { message: res.data.message, data: { id } }
+}
+
+export async function toggleAdminStatus(id: string): Promise<ApiSuccessResponse<IAdminUser>> {
+  const res = await http.patch<ApiSuccessResponse<RawAdmin>>(
+    `/super-admin/admins/${id}/toggle-status`
+  )
+  return { message: res.data.message, data: mapAdmin(res.data.data) }
+}
+
+export async function resetAdminPassword(
+  id: string,
+  newPassword: string
+): Promise<ApiSuccessResponse<unknown>> {
+  const res = await http.post(`/super-admin/admins/${id}/reset-password`, { newPassword })
+  return res.data
+}
+
+export async function getAdminMetrics(): Promise<IAdminMetrics> {
+  const [total, admin, editor, viewer] = await Promise.all([
+    getAdmins({ limit: 1 }),
+    getAdmins({ limit: 1, role: "admin" }),
+    getAdmins({ limit: 1, role: "editor" }),
+    getAdmins({ limit: 1, role: "viewer" }),
+  ])
+
+  return {
+    total: total.total,
+    admin: admin.total,
+    editor: editor.total,
+    viewer: viewer.total,
+  }
 }

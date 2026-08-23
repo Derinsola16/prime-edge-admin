@@ -1,24 +1,39 @@
 import { IUser } from "@/types/user.types";
 import { ApiSuccessResponse } from "@/types/api.types";
+import { http } from "@/utils/axios";
 
-// TODO: replace with a real API call once the backend endpoint is ready.
-// import { http } from "@/utils/axios";
-
-const MOCK_USER: IUser = {
-  id: "usr_1",
-  email: "hannah@president.com",
-  first_name: "Hannah",
-  last_name: "4President",
-  status: "active",
-  created_at: "2025-01-01T00:00:00.000Z",
-  updated_at: "2025-01-01T00:00:00.000Z",
+type AdminProfileResponse = {
+  message: string;
+  data: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    role: IUser["role"];
+    permissions: IUser["permissions"];
+    avatar?: string;
+    isActive: boolean;
+    createdAt: string;
+  };
 };
 
 export async function getSessionUser(): Promise<ApiSuccessResponse<IUser>> {
-  // const res = await http.get("/api/users/me");
-  // return res.data;
+  const res = await http.get<AdminProfileResponse>("/admin/profile");
+  const admin = res.data.data;
 
-  await new Promise(resolve => setTimeout(resolve, 300));
+  const user: IUser = {
+    id: admin._id,
+    email: admin.email,
+    first_name: admin.firstName,
+    last_name: admin.lastName,
+    phone: admin.phone,
+    avatar_url: admin.avatar,
+    status: admin.isActive ? "active" : "inactive",
+    role: admin.role,
+    permissions: admin.permissions,
+    created_at: admin.createdAt,
+  };
 
-  return { message: "ok", data: MOCK_USER };
+  return { message: res.data.message, data: user };
 }
