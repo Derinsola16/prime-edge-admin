@@ -43,23 +43,24 @@ export default function AdminManagementPage() {
     queryFn: getSessionUser,
   })
   const role = sessionRes?.data.role
+  const canManageAdmins = role === "superadmin" || role === "admin"
 
   useEffect(() => {
-    if (!sessionLoading && role && role !== "admin") {
+    if (!sessionLoading && role && !canManageAdmins) {
       router.replace("/dashboard")
     }
-  }, [sessionLoading, role, router])
+  }, [sessionLoading, role, canManageAdmins, router])
 
   const { data: metrics } = useQuery({
     queryKey: ["admin-metrics"],
     queryFn: getAdminMetrics,
-    enabled: role === "admin",
+    enabled: canManageAdmins,
   })
 
   const { data: adminsRes, isLoading } = useQuery({
     queryKey: ["admins", page],
     queryFn: () => getAdmins({ page, limit: PAGE_SIZE }),
-    enabled: role === "admin",
+    enabled: canManageAdmins,
   })
 
   const toggleStatusMutation = useMutation({
@@ -82,7 +83,7 @@ export default function AdminManagementPage() {
     onError: () => toast.error("Failed to remove admin"),
   })
 
-  if (sessionLoading || (role && role !== "admin")) {
+  if (sessionLoading || (role && !canManageAdmins)) {
     return null
   }
 

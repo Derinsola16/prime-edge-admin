@@ -6,12 +6,10 @@ import {
   ICreateAdminRequest,
   IUpdateAdminRequest,
   AdminRole,
+  PermissionCatalogGroup,
 } from "@/types/admin.types"
 
-export {
-  ROLE_OPTIONS,
-  PERMISSION_OPTIONS,
-} from "@/types/admin.types"
+export { ROLE_OPTIONS } from "@/types/admin.types"
 
 type RawAdmin = {
   _id: string
@@ -19,7 +17,7 @@ type RawAdmin = {
   lastName: string
   email: string
   phone?: string
-  role: AdminRole
+  roleType: AdminRole
   permissions: IAdminUser["permissions"]
   avatar?: string
   isActive: boolean
@@ -33,7 +31,7 @@ function mapAdmin(raw: RawAdmin): IAdminUser {
     lastName: raw.lastName,
     email: raw.email,
     phone: raw.phone,
-    role: raw.role,
+    role: raw.roleType,
     permissions: raw.permissions,
     avatar: raw.avatar,
     isActive: raw.isActive,
@@ -44,10 +42,10 @@ function mapAdmin(raw: RawAdmin): IAdminUser {
 export async function getAdmins(params: {
   page?: number
   limit?: number
-  role?: AdminRole
+  roleType?: AdminRole
   isActive?: boolean
 }): Promise<{ items: IAdminUser[]; total: number; page: number; pages: number; limit: number }> {
-  const res = await http.get<PaginatedResponse<RawAdmin>>("/super-admin/admins", { params })
+  const res = await http.get<PaginatedResponse<RawAdmin>>("/admin/admins", { params })
 
   return {
     items: res.data.data.map(mapAdmin),
@@ -59,14 +57,14 @@ export async function getAdmins(params: {
 }
 
 export async function getAdminById(id: string): Promise<ApiSuccessResponse<IAdminUser>> {
-  const res = await http.get<ApiSuccessResponse<RawAdmin>>(`/super-admin/admins/${id}`)
+  const res = await http.get<ApiSuccessResponse<RawAdmin>>(`/admin/admins/${id}`)
   return { message: res.data.message, data: mapAdmin(res.data.data) }
 }
 
 export async function createAdmin(
   payload: ICreateAdminRequest
 ): Promise<ApiSuccessResponse<IAdminUser>> {
-  const res = await http.post<ApiSuccessResponse<RawAdmin>>("/super-admin/admins", payload)
+  const res = await http.post<ApiSuccessResponse<RawAdmin>>("/admin/admins", payload)
   return { message: res.data.message, data: mapAdmin(res.data.data) }
 }
 
@@ -74,19 +72,17 @@ export async function updateAdmin(
   id: string,
   payload: IUpdateAdminRequest
 ): Promise<ApiSuccessResponse<IAdminUser>> {
-  const res = await http.put<ApiSuccessResponse<RawAdmin>>(`/super-admin/admins/${id}`, payload)
+  const res = await http.put<ApiSuccessResponse<RawAdmin>>(`/admin/admins/${id}`, payload)
   return { message: res.data.message, data: mapAdmin(res.data.data) }
 }
 
 export async function deleteAdmin(id: string): Promise<ApiSuccessResponse<{ id: string }>> {
-  const res = await http.delete<ApiSuccessResponse<unknown>>(`/super-admin/admins/${id}`)
+  const res = await http.delete<ApiSuccessResponse<unknown>>(`/admin/admins/${id}`)
   return { message: res.data.message, data: { id } }
 }
 
 export async function toggleAdminStatus(id: string): Promise<ApiSuccessResponse<IAdminUser>> {
-  const res = await http.patch<ApiSuccessResponse<RawAdmin>>(
-    `/super-admin/admins/${id}/toggle-status`
-  )
+  const res = await http.patch<ApiSuccessResponse<RawAdmin>>(`/admin/admins/${id}/toggle-status`)
   return { message: res.data.message, data: mapAdmin(res.data.data) }
 }
 
@@ -94,22 +90,56 @@ export async function resetAdminPassword(
   id: string,
   newPassword: string
 ): Promise<ApiSuccessResponse<unknown>> {
-  const res = await http.post(`/super-admin/admins/${id}/reset-password`, { newPassword })
+  const res = await http.post(`/admin/admins/${id}/reset-password`, { newPassword })
   return res.data
 }
 
 export async function getAdminMetrics(): Promise<IAdminMetrics> {
-  const [total, admin, editor, viewer] = await Promise.all([
+  const [total, admin, support, custom] = await Promise.all([
     getAdmins({ limit: 1 }),
-    getAdmins({ limit: 1, role: "admin" }),
-    getAdmins({ limit: 1, role: "editor" }),
-    getAdmins({ limit: 1, role: "viewer" }),
+    getAdmins({ limit: 1, roleType: "admin" }),
+    getAdmins({ limit: 1, roleType: "support" }),
+    getAdmins({ limit: 1, roleType: "custom" }),
   ])
 
   return {
     total: total.total,
     admin: admin.total,
-    editor: editor.total,
-    viewer: viewer.total,
+    support: support.total,
+    custom: custom.total,
   }
+}
+
+// ── Permission catalog ──────────────────────────────────────────────────────
+
+type RawPermissionCatalog = Record<string, Record<string, string>>
+
+const MODULE_LABELS: Record<string, string> = {
+  clients: "Clients",
+  property: "Property",
+  financials: "Financials",
+  content: "Content",
+  system: "System",
+  support: "Support",
+  users: "Users",
+}
+
+function titleCase(key: string): string {
+  return key
+    .split("_")
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+}
+
+export async function getPermissionCatalog(): Promise<PermissionCatalogGroup[]> {
+  const res = await http.get<ApiSuccessResponse<RawPermissionCatalog>>("/admin/permissions")
+
+  return Object.entries(res.data.data).map(([module, entries]) => ({
+    module,
+    label: MODULE_LABELS[module] ?? titleCase(module),
+    permissions: Object.entries(entries).map(([key, value]) => ({
+      value,
+      label: titleCase(key),
+    })),
+  }))
 }

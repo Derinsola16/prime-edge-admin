@@ -1,88 +1,124 @@
-export type PropertyStatus =
-  | "construction"
-  | "operational"
-  | "completed"
-  | "delivered"
-  | "draft"
+export type ProductType =
+  | "apartment"
+  | "duplex"
+  | "terrace"
+  | "penthouse"
+  | "studio"
+  | "office"
+  | "shop"
+  | "warehouse"
+  | "land"
+  | "bungalow"
+  | "mansion"
 
+export type ProductStatus = "available" | "reserved" | "sold" | "off_plan"
+
+export const PRODUCT_TYPE_OPTIONS: { value: ProductType; label: string }[] = [
+  { value: "apartment", label: "Apartment" },
+  { value: "duplex", label: "Duplex" },
+  { value: "terrace", label: "Terrace" },
+  { value: "penthouse", label: "Penthouse" },
+  { value: "studio", label: "Studio" },
+  { value: "office", label: "Office" },
+  { value: "shop", label: "Shop" },
+  { value: "warehouse", label: "Warehouse" },
+  { value: "land", label: "Land" },
+  { value: "bungalow", label: "Bungalow" },
+  { value: "mansion", label: "Mansion" },
+]
+
+export const PRODUCT_STATUS_OPTIONS: { value: ProductStatus; label: string }[] = [
+  { value: "available", label: "Available" },
+  { value: "reserved", label: "Reserved" },
+  { value: "sold", label: "Sold" },
+  { value: "off_plan", label: "Off-Plan" },
+]
+
+export type IPropertyImage = {
+  id?: string
+  url: string
+  publicId: string
+  caption?: string
+}
+
+export type IPropertyPaymentPlan = {
+  name: string
+  description?: string
+  duration?: string
+}
+
+export type IPropertyProjectRef = {
+  id: string
+  title: string
+  slug?: string
+  status?: string
+  location?: {
+    address: string
+    city: string
+    state: string
+    country: string
+  }
+}
+
+/** Row shape used on the property list/table. */
 export type IProperty = {
   id: string
   name: string
+  slug: string
   thumbnail_url: string
   location: string
-  units: number
-  status: PropertyStatus
-  construction_progress?: number
-  truscrow_verified: boolean
+  type: ProductType
+  bedrooms?: number
+  price: number
+  priceLabel?: string
+  status: ProductStatus
+  isPublished: boolean
+  isFeatured: boolean
+  project: IPropertyProjectRef | null
+  createdAt: string
 }
 
 export type IPropertyMetrics = {
   total_properties: number
-  completed_projects: number
-  ongoing_projects: number
-  delivered_homes: number
+  published: number
+  available: number
+  drafts: number
 }
 
 export type GetPropertiesPayload = {
   page?: number
-  filter?: "all" | "ongoing" | "completed" | "delivered" | "drafts"
+  limit?: number
+  search?: string
+  filter?: "all" | "available" | "reserved" | "sold" | "off_plan" | "drafts" | "featured"
 }
 
-export type IPropertyDocument = {
-  id: string
-  label: string
-  format: string
-  size_label: string
-  url: string
-}
-
-export type IPropertyAmenity = {
-  id: string
-  label: string
-  icon: string
-}
-
-export type IPropertyGrowthPoint = {
-  month: string
-  revenue: number
-  projected: number
-}
-
+/** Full detail shape used on the property preview/details page. */
 export type IPropertyDetail = {
   id: string
   name: string
-  estate_name: string
+  slug: string
+  description?: string
+  project: IPropertyProjectRef | null
   address: string
-  images: string[]
-  location_label: string
-  location_note: string
-  duration_label: string
-  duration_note: string
-  bedrooms: number
-  has_bq: boolean
-  projected_irr: number
-  property_type: string
-  developer: string
-  tenure: string
-  completion_label: string
-  description: string
-  target_irr: number
-  exp_cash_yield: number
-  min_investment: number
-  funding_raised: number
-  funding_target: number
-  funding_percent: number
-  days_left: number
-  units_available: number
-  units_bought: number
-  risk_rating: string
-  documents: IPropertyDocument[]
-  floor_plan_url: string
-  amenities: IPropertyAmenity[]
-  growth: IPropertyGrowthPoint[]
-  overall_revenue_label: string
-  current_valuation: number
-  share_price: number
-  hold_period: string
-  min_investment_amount: number
+  images: IPropertyImage[]
+  type: ProductType
+  status: ProductStatus
+  size?: number
+  bedrooms?: number
+  bathrooms?: number
+  toilets?: number
+  parkingSpaces?: number
+  floor?: number
+  totalFloors?: number
+  price: number
+  priceLabel?: string
+  serviceCharge?: number
+  paymentPlans: IPropertyPaymentPlan[]
+  features: string[]
+  floorPlan?: { url: string; publicId: string }
+  virtualTourUrl?: string
+  isFeatured: boolean
+  isPublished: boolean
+  createdAt: string
+  updatedAt: string
 }

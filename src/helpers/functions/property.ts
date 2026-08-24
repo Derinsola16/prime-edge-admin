@@ -1,25 +1,40 @@
-import { IProperty } from "@/types/property.types"
+import { ProductStatus } from "@/types/property.types"
 
-export function getPropertyStatusLabel(property: IProperty) {
-  if (property.status === "construction") {
-    return `Construction: ${property.construction_progress ?? 0}%`
+export function getPropertyStatusLabel(status: ProductStatus) {
+  switch (status) {
+    case "available":
+      return "Available"
+    case "reserved":
+      return "Reserved"
+    case "sold":
+      return "Sold"
+    case "off_plan":
+      return "Off-Plan"
   }
-
-  return property.status.charAt(0).toUpperCase() + property.status.slice(1)
 }
 
-export function getPropertyStatusClassName(property: IProperty) {
-  switch (property.status) {
-    case "operational":
+export function getPropertyStatusClassName(status: ProductStatus) {
+  switch (status) {
+    case "available":
       return "border-transparent bg-success/10 text-success"
-    case "construction":
-      return (property.construction_progress ?? 0) >= 50
-        ? "border-brand-skyblue text-brand-deepblue bg-transparent"
-        : "border-orange-400 text-orange-500 bg-transparent"
-    case "completed":
-    case "delivered":
+    case "reserved":
       return "border-orange-400 text-orange-500 bg-transparent"
-    default:
-      return "border-border text-muted-foreground bg-transparent"
+    case "sold":
+      return "border-transparent bg-muted text-muted-foreground"
+    case "off_plan":
+      return "border-brand-skyblue text-brand-deepblue bg-transparent"
   }
+}
+
+export function formatNaira(value?: number) {
+  if (value === undefined || value === null) return "—"
+  if (value >= 1_000_000) return `₦${(value / 1_000_000).toFixed(1)}M`
+  return `₦${value.toLocaleString()}`
+}
+
+export function formatPropertyType(type: string) {
+  return type
+    .split("_")
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
 }

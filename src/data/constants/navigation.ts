@@ -32,7 +32,7 @@ export const primaryNavItems: NavItem[] = [
     label: "Admin Management",
     href: "/admin-management",
     icon: UserCog,
-    restrictedTo: ["admin"],
+    restrictedTo: ["superadmin", "admin"],
   },
 ]
 

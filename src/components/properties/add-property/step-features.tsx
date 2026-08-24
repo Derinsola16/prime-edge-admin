@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { AddPropertyFormValues } from "@/types/add-property.types"
 
-const presetAmenities: { label: string; icon: LucideIcon }[] = [
+const presetFeatures: { label: string; icon: LucideIcon }[] = [
   { label: "24/7 Power", icon: Zap },
   { label: "Swimming Pool", icon: Waves },
   { label: "Security", icon: ShieldCheck },
@@ -33,7 +33,7 @@ const presetAmenities: { label: string; icon: LucideIcon }[] = [
   { label: "Lounge", icon: Sofa },
 ]
 
-export function StepAmenities({
+export function StepFeatures({
   form,
   onNext,
   onPrevious,
@@ -43,23 +43,23 @@ export function StepAmenities({
   onPrevious: () => void
 }) {
   const { watch, setValue } = form
-  const amenities = watch("amenities")
+  const features = watch("features")
   const [draft, setDraft] = useState("")
 
   const toggle = (label: string) => {
     setValue(
-      "amenities",
-      amenities.includes(label)
-        ? amenities.filter(a => a !== label)
-        : [...amenities, label]
+      "features",
+      features.includes(label)
+        ? features.filter(a => a !== label)
+        : [...features, label]
     )
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && draft.trim()) {
       e.preventDefault()
-      if (!amenities.includes(draft.trim())) {
-        setValue("amenities", [...amenities, draft.trim()])
+      if (!features.includes(draft.trim())) {
+        setValue("features", [...features, draft.trim()])
       }
       setDraft("")
     }
@@ -69,7 +69,7 @@ export function StepAmenities({
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">Section 4 of 5</p>
-        <h2 className="text-xl font-semibold text-foreground">Amenities</h2>
+        <h2 className="text-xl font-semibold text-foreground">Features</h2>
       </div>
 
       <div className="space-y-1.5">
@@ -77,7 +77,7 @@ export function StepAmenities({
           Type and Press enter
         </label>
         <Input
-          placeholder="Enter Amount"
+          placeholder="E.g Rooftop lounge"
           className="h-12"
           value={draft}
           onChange={e => setDraft(e.target.value)}
@@ -88,8 +88,8 @@ export function StepAmenities({
       <div className="space-y-3 border-t border-border pt-6">
         <p className="text-sm font-medium text-foreground">Or Select from below</p>
         <div className="flex flex-wrap gap-3">
-          {presetAmenities.map(item => {
-            const selected = amenities.includes(item.label)
+          {presetFeatures.map(item => {
+            const selected = features.includes(item.label)
 
             return (
               <button
@@ -108,6 +108,22 @@ export function StepAmenities({
           })}
         </div>
       </div>
+
+      {features.length > 0 && (
+        <div className="flex flex-wrap gap-2 border-t border-border pt-6">
+          {features.map(label => (
+            <span
+              key={label}
+              className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-foreground"
+            >
+              {label}
+              <button type="button" onClick={() => toggle(label)} className="text-muted-foreground hover:text-foreground">
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-3">
         <Button

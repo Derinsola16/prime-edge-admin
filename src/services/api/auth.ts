@@ -4,7 +4,7 @@ import { StorageKeys } from "@/types/storage.types";
 import { setCookieItem } from "@/helpers/functions/cookie";
 
 export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
-  const res = await httpNoAuth.post<LoginResponse>("/admin/login", payload);
+  const res = await httpNoAuth.post<LoginResponse>("/login", payload);
 
   setCookieItem(StorageKeys.AUTHENTICATED_USER_TOKENS, res.data.data);
 

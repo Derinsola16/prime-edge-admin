@@ -1,12 +1,9 @@
-export type AdminRole = "admin" | "editor" | "viewer"
+export type AdminRole = "superadmin" | "admin" | "support" | "custom"
 
-export type AdminPermission =
-  | "manage_content"
-  | "manage_projects"
-  | "manage_products"
-  | "manage_users"
-  | "manage_inquiries"
-  | "view_analytics"
+/** Roles that can actually be created/assigned through the Admin Management UI. */
+export type CreatableAdminRole = Exclude<AdminRole, "superadmin">
+
+export type AdminPermission = string
 
 export type IAdminUser = {
   id: string
@@ -24,8 +21,8 @@ export type IAdminUser = {
 export type IAdminMetrics = {
   total: number
   admin: number
-  editor: number
-  viewer: number
+  support: number
+  custom: number
 }
 
 export type ICreateAdminRequest = {
@@ -33,7 +30,7 @@ export type ICreateAdminRequest = {
   lastName: string
   email: string
   password: string
-  role: AdminRole
+  roleType: CreatableAdminRole
   permissions: AdminPermission[]
 }
 
@@ -41,21 +38,41 @@ export type IUpdateAdminRequest = {
   firstName?: string
   lastName?: string
   phone?: string
-  role?: AdminRole
+  roleType?: CreatableAdminRole
   permissions?: AdminPermission[]
 }
 
-export const ROLE_OPTIONS: { value: AdminRole; label: string }[] = [
-  { value: "admin", label: "Admin" },
-  { value: "editor", label: "Editor" },
-  { value: "viewer", label: "Viewer" },
+export const ROLE_OPTIONS: {
+  value: CreatableAdminRole
+  label: string
+  description: string
+}[] = [
+  {
+    value: "admin",
+    label: "Admin",
+    description: "Full access — everything Super Admin can do, except managing the Super Admin account.",
+  },
+  {
+    value: "support",
+    label: "Support",
+    description: "Access limited to whichever permissions are granted below.",
+  },
+  {
+    value: "custom",
+    label: "Custom",
+    description: "Access limited to whichever permissions are granted below.",
+  },
 ]
 
-export const PERMISSION_OPTIONS: { value: AdminPermission; label: string }[] = [
-  { value: "manage_content", label: "Manage Content" },
-  { value: "manage_projects", label: "Manage Projects" },
-  { value: "manage_products", label: "Manage Products" },
-  { value: "manage_users", label: "Manage Users" },
-  { value: "manage_inquiries", label: "Manage Inquiries" },
-  { value: "view_analytics", label: "View Analytics" },
-]
+/** A single permission from the backend's permission catalog. */
+export type PermissionCatalogEntry = {
+  value: string
+  label: string
+}
+
+/** Permissions grouped by module, as returned by GET /admin/permissions. */
+export type PermissionCatalogGroup = {
+  module: string
+  label: string
+  permissions: PermissionCatalogEntry[]
+}

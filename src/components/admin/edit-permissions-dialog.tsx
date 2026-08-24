@@ -3,13 +3,14 @@
 import { toast } from "sonner"
 import { useState } from "react"
 import { AxiosError } from "axios"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { ShieldCheck } from "lucide-react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { updateAdmin } from "@/services/api/admin"
+import { updateAdmin, getPermissionCatalog } from "@/services/api/admin"
 import { ApiErrorResponse } from "@/types/api.types"
-import { AdminPermission, AdminRole, IAdminUser, PERMISSION_OPTIONS, ROLE_OPTIONS } from "@/types/admin.types"
+import { CreatableAdminRole, IAdminUser, ROLE_OPTIONS } from "@/types/admin.types"
 import {
   Dialog,
   DialogContent,
@@ -35,10 +36,20 @@ export function EditPermissionsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const queryClient = useQueryClient()
-  const [role, setRole] = useState<AdminRole>(admin?.role ?? "viewer")
-  const [permissions, setPermissions] = useState<AdminPermission[]>(admin?.permissions ?? [])
+  const [roleType, setRoleType] = useState<CreatableAdminRole>(
+    (admin?.role as CreatableAdminRole) ?? "support"
+  )
+  const [permissions, setPermissions] = useState<string[]>(admin?.permissions ?? [])
 
-  const togglePermission = (value: AdminPermission) => {
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["permission-catalog"],
+    queryFn: getPermissionCatalog,
+    enabled: open,
+  })
+
+  const isFullAccess = roleType === "admin"
+
+  const togglePermission = (value: string) => {
     setPermissions(prev =>
       prev.includes(value) ? prev.filter(p => p !== value) : [...prev, value]
     )
@@ -47,7 +58,10 @@ export function EditPermissionsDialog({
   const mutation = useMutation({
     mutationFn: () => {
       if (!admin) throw new Error("No admin selected")
-      return updateAdmin(admin.id, { role, permissions })
+      return updateAdmin(admin.id, {
+        roleType,
+        permissions: isFullAccess ? [] : permissions,
+      })
     },
     onSuccess: () => {
       toast.success("Permissions updated")
@@ -73,7 +87,10 @@ export function EditPermissionsDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Role</label>
-            <Select value={role} onValueChange={value => setRole(value as AdminRole)}>
+            <Select
+              value={roleType}
+              onValueChange={v => v && setRoleType(v as CreatableAdminRole)}
+            >
               <SelectTrigger className="h-11 w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -85,25 +102,44 @@ export function EditPermissionsDialog({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              {ROLE_OPTIONS.find(r => r.value === roleType)?.description}
+            </p>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Permissions</label>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-border p-4">
-              {PERMISSION_OPTIONS.map(permission => (
-                <label
-                  key={permission.value}
-                  className="flex items-center gap-2 text-sm text-foreground"
-                >
-                  <Checkbox
-                    checked={permissions.includes(permission.value)}
-                    onCheckedChange={() => togglePermission(permission.value)}
-                  />
-                  {permission.label}
-                </label>
-              ))}
+          {isFullAccess ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary p-4 text-sm text-foreground">
+              <ShieldCheck className="size-4 shrink-0 text-brand-deepblue" />
+              Full access to every module — same as Super Admin.
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Permissions</label>
+              <div className="max-h-64 space-y-4 overflow-y-auto rounded-lg border border-border p-4">
+                {catalog.map(group => (
+                  <div key={group.module}>
+                    <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      {group.label}
+                    </p>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                      {group.permissions.map(permission => (
+                        <label
+                          key={permission.value}
+                          className="flex items-center gap-2 text-sm text-foreground"
+                        >
+                          <Checkbox
+                            checked={permissions.includes(permission.value)}
+                            onCheckedChange={() => togglePermission(permission.value)}
+                          />
+                          {permission.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 border-t border-border pt-4">

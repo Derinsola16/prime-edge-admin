@@ -1,32 +1,28 @@
-import { Wallet, Home, Building2, KeyRound } from "lucide-react"
+import { Building2, CheckCircle2, FileEdit, Layers } from "lucide-react"
 
 import { IPropertyMetrics } from "@/types/property.types"
 
-export function PropertyMetrics({
-  metrics,
-}: {
-  metrics: IPropertyMetrics
-}) {
+export function PropertyMetrics({ metrics }: { metrics: IPropertyMetrics }) {
   const items = [
     {
       label: "Total Properties",
       value: metrics.total_properties,
-      icon: Wallet,
+      icon: Layers,
     },
     {
-      label: "Completed Projects",
-      value: metrics.completed_projects,
-      icon: Home,
+      label: "Published",
+      value: metrics.published,
+      icon: CheckCircle2,
     },
     {
-      label: "Ongoing Projects",
-      value: metrics.ongoing_projects,
+      label: "Available",
+      value: metrics.available,
       icon: Building2,
     },
     {
-      label: "Delivered Homes",
-      value: metrics.delivered_homes,
-      icon: KeyRound,
+      label: "Drafts",
+      value: metrics.drafts,
+      icon: FileEdit,
     },
   ]
 
