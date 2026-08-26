@@ -13,7 +13,7 @@ export function CmsMetrics({ metrics }: { metrics: ICmsMetrics }) {
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
       {items.map(item => (
         <div
           key={item.label}

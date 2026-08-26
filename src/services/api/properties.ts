@@ -12,6 +12,13 @@ import {
   ProductType,
 } from "@/types/property.types"
 
+// Cloudinary URLs uploaded before the backend was fixed to return `secure_url`
+// are stored as `http://`, which `next/image`'s remote-pattern allowlist (https-only)
+// rejects outright. Normalize defensively so old records don't crash the page.
+function toSecureUrl(url: string): string {
+  return url.replace(/^http:\/\//, "https://")
+}
+
 type RawProjectRef = {
   _id: string
   title: string
@@ -74,7 +81,7 @@ function mapProperty(raw: RawProduct): IProperty {
     id: raw._id,
     name: raw.title,
     slug: raw.slug,
-    thumbnail_url: raw.images?.[0]?.url ?? "",
+    thumbnail_url: toSecureUrl(raw.images?.[0]?.url ?? ""),
     location: formatLocation(project),
     type: raw.type,
     bedrooms: raw.bedrooms,
@@ -102,7 +109,7 @@ function mapPropertyDetail(raw: RawProduct): IPropertyDetail {
       : "Address unavailable",
     images: (raw.images ?? []).map(img => ({
       id: img._id,
-      url: img.url,
+      url: toSecureUrl(img.url),
       publicId: img.publicId,
       caption: img.caption,
     })),
@@ -120,7 +127,7 @@ function mapPropertyDetail(raw: RawProduct): IPropertyDetail {
     serviceCharge: raw.serviceCharge,
     paymentPlans: raw.paymentPlans ?? [],
     features: raw.features ?? [],
-    floorPlan: raw.floorPlan,
+    floorPlan: raw.floorPlan ? { ...raw.floorPlan, url: toSecureUrl(raw.floorPlan.url) } : raw.floorPlan,
     virtualTourUrl: raw.virtualTourUrl,
     isFeatured: raw.isFeatured,
     isPublished: raw.isPublished,

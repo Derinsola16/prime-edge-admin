@@ -37,7 +37,7 @@ export function StepAmenities({
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-foreground">Amenities</h3>
 
-      <div className="grid grid-cols-[1fr_260px] gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px]">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">Describe Amenities</label>
           <Textarea rows={5} {...register("amenities_description")} />

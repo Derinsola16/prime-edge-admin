@@ -1,21 +1,25 @@
 "use client"
 
 import Link from "next/link"
+import { AxiosError } from "axios"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
 import { Save, ChevronLeft } from "lucide-react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import { createCmsProject } from "@/services/api/cms"
+import { ApiErrorResponse } from "@/types/api.types"
+import { PendingImage } from "@/types/add-property.types"
+import { createCmsProject, uploadCmsProjectCover, addCmsProjectGalleryImage } from "@/services/api/cms"
+import { buildCreateCmsProjectPayload } from "@/helpers/functions/add-cms-project"
 import { WizardStepIndicator } from "@/components/shared/wizard-step-indicator"
 import { PublishSuccessDialog } from "@/components/shared/publish-success-dialog"
 import { StepContent } from "@/components/cms/add-project/step-content"
 import { StepLocation } from "@/components/cms/add-project/step-location"
 import { StepAmenities } from "@/components/cms/add-project/step-amenities"
 import { StepBasicInfo } from "@/components/cms/add-project/step-basic-info"
-import { StepMediaGallery } from "@/components/cms/add-project/step-media-gallery"
+import { StepMediaGallery, CmsGalleryImage } from "@/components/cms/add-project/step-media-gallery"
 import { ADD_CMS_PROJECT_STEPS, AddCmsProjectFormValues } from "@/types/add-cms-project.types"
 
 const defaultValues: AddCmsProjectFormValues = {
@@ -26,6 +30,8 @@ const defaultValues: AddCmsProjectFormValues = {
   overview: "",
   category: "residential",
   full_address: "",
+  status: "upcoming",
+  construction_progress: "",
   about_project: "",
   heading: "",
   value_tagline: "",
@@ -38,15 +44,48 @@ const defaultValues: AddCmsProjectFormValues = {
 
 export default function CmsAddProjectPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [stepIndex, setStepIndex] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [isDraft, setIsDraft] = useState(false)
 
   const form = useForm<AddCmsProjectFormValues>({ defaultValues })
 
+  const [heroImage, setHeroImage] = useState<PendingImage | null>(null)
+  const [galleryImages, setGalleryImages] = useState<CmsGalleryImage[]>([])
+
   const publishMutation = useMutation({
-    mutationFn: () => createCmsProject(form.getValues()),
-    onSuccess: () => setShowSuccess(true),
-    onError: () => toast.error("Failed to publish project"),
+    mutationFn: async (publish: boolean) => {
+      const payload = buildCreateCmsProjectPayload(form.getValues(), publish)
+      const created = await createCmsProject(payload)
+      const id = created.data.id
+
+      if (heroImage) {
+        try {
+          await uploadCmsProjectCover(id, heroImage.file)
+        } catch {
+          toast.error("Failed to upload hero image")
+        }
+      }
+
+      for (const img of galleryImages) {
+        try {
+          await addCmsProjectGalleryImage(id, img.file, img.category)
+        } catch {
+          toast.error(`Failed to upload ${img.file.name}`)
+        }
+      }
+
+      return id
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cms-projects"] })
+      queryClient.invalidateQueries({ queryKey: ["cms-metrics"] })
+      setShowSuccess(true)
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.message || "Failed to publish project")
+    },
   })
 
   const goNext = () =>
@@ -78,8 +117,12 @@ export default function CmsAddProjectPage() {
         </div>
 
         <button
-          onClick={() => toast.success("Draft saved")}
-          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            setIsDraft(true)
+            publishMutation.mutate(false)
+          }}
+          disabled={publishMutation.isPending}
+          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-60"
         >
           Save As Draft
           <Save className="size-4" />
@@ -89,9 +132,29 @@ export default function CmsAddProjectPage() {
       <WizardStepIndicator steps={ADD_CMS_PROJECT_STEPS} currentIndex={stepIndex} />
 
       <div className="rounded-xl border border-border bg-card p-8">
-        {stepIndex === 0 && <StepBasicInfo form={form} onNext={goNext} />}
+        {stepIndex === 0 && (
+          <StepBasicInfo
+            form={form}
+            heroImage={heroImage}
+            onHeroChange={file =>
+              setHeroImage(file ? { file, previewUrl: URL.createObjectURL(file) } : null)
+            }
+            onNext={goNext}
+          />
+        )}
         {stepIndex === 1 && (
-          <StepMediaGallery onNext={goNext} onPrevious={goPrevious} />
+          <StepMediaGallery
+            images={galleryImages}
+            onAdd={(category, file) =>
+              setGalleryImages(imgs => [
+                ...imgs,
+                { category, file, previewUrl: URL.createObjectURL(file) },
+              ])
+            }
+            onRemove={index => setGalleryImages(imgs => imgs.filter((_, i) => i !== index))}
+            onNext={goNext}
+            onPrevious={goPrevious}
+          />
         )}
         {stepIndex === 2 && (
           <StepContent form={form} onNext={goNext} onPrevious={goPrevious} />
@@ -104,7 +167,10 @@ export default function CmsAddProjectPage() {
             form={form}
             onPrevious={goPrevious}
             isPublishing={publishMutation.isPending}
-            onPublish={() => publishMutation.mutate()}
+            onPublish={() => {
+              setIsDraft(false)
+              publishMutation.mutate(true)
+            }}
           />
         )}
       </div>
@@ -115,7 +181,11 @@ export default function CmsAddProjectPage() {
           setShowSuccess(open)
           if (!open) router.push("/cms/projects")
         }}
-        description='A new project has been successfully published. Go to "Projects" to see the new addition.'
+        description={
+          isDraft
+            ? 'Your project has been saved as a draft. Publish it any time from the CMS Projects page.'
+            : 'A new project has been successfully published. Go to "Projects" to see the new addition.'
+        }
       />
     </div>
   )
