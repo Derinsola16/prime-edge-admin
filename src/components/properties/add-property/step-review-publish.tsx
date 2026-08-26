@@ -1,30 +1,57 @@
 import { UseFormReturn } from "react-hook-form"
 
 import { Button } from "@/components/ui/button"
-import { AddPropertyFormValues } from "@/types/add-property.types"
+import { Checkbox } from "@/components/ui/checkbox"
+import { PendingImage, AddPropertyFormValues } from "@/types/add-property.types"
+import { PRODUCT_STATUS_OPTIONS } from "@/types/property.types"
+import { IProjectOption } from "@/services/api/properties"
 import { PropertyMap } from "@/components/properties/property-map"
-import { PropertyRisk } from "@/components/properties/property-risk"
 import { PropertyGallery } from "@/components/properties/property-gallery"
+import { PropertyPricing } from "@/components/properties/property-pricing"
 import { PropertyOverview } from "@/components/properties/property-overview"
-import { PropertyFinancial } from "@/components/properties/property-financial"
-import { PropertyAmenities } from "@/components/properties/property-amenities"
+import { PropertyFeatures } from "@/components/properties/property-features"
 import { PropertyFloorPlan } from "@/components/properties/property-floorplan"
 import { PropertyQuickFacts } from "@/components/properties/property-quick-facts"
-import { PropertyGrowthChart } from "@/components/properties/property-growth-chart"
-import { buildPreviewFromWizard } from "@/helpers/functions/add-property"
+import { buildPropertyPreview } from "@/helpers/functions/add-property"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function StepReviewPublish({
   form,
+  projects,
+  heroImage,
+  galleryImages,
+  floorPlanImage,
   onPublish,
   onPrevious,
   isPublishing,
 }: {
   form: UseFormReturn<AddPropertyFormValues>
+  projects: IProjectOption[]
+  heroImage: PendingImage | null
+  galleryImages: PendingImage[]
+  floorPlanImage: PendingImage | null
   onPublish: () => void
   onPrevious: () => void
   isPublishing?: boolean
 }) {
-  const property = buildPreviewFromWizard(form.getValues())
+  const values = form.watch()
+  const selectedProject = projects.find(p => p.id === values.projectId)
+  const imagePreviewUrls = [heroImage, ...galleryImages]
+    .filter((img): img is PendingImage => img !== null)
+    .map(img => img.previewUrl)
+
+  const property = buildPropertyPreview(
+    values,
+    selectedProject,
+    imagePreviewUrls,
+    floorPlanImage?.previewUrl ?? null
+  )
 
   return (
     <div className="space-y-6">
@@ -33,6 +60,39 @@ export function StepReviewPublish({
         <h2 className="text-xl font-semibold text-foreground">
           Review &amp; Publish
         </h2>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Listing Status</label>
+          <Select
+            value={values.status}
+            onValueChange={v =>
+              v && form.setValue("status", v as AddPropertyFormValues["status"])
+            }
+          >
+            <SelectTrigger className="h-11 w-full bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRODUCT_STATUS_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <label className="flex items-center gap-2 self-end pb-2.5">
+          <Checkbox
+            checked={values.publishNow}
+            onCheckedChange={checked => form.setValue("publishNow", checked === true)}
+          />
+          <span className="text-sm font-medium text-foreground">
+            Publish immediately (visible on the website)
+          </span>
+        </label>
       </div>
 
       <PropertyGallery images={property.images} />
@@ -44,14 +104,9 @@ export function StepReviewPublish({
 
       <PropertyQuickFacts property={property} />
       <PropertyOverview property={property} />
-      <PropertyFinancial property={property} />
-      <PropertyRisk property={property} />
-      <PropertyFloorPlan imageUrl={property.floor_plan_url} />
-      <PropertyAmenities amenities={property.amenities} />
-      <PropertyGrowthChart
-        growth={property.growth}
-        overallRevenueLabel={property.overall_revenue_label}
-      />
+      <PropertyPricing property={property} />
+      <PropertyFloorPlan imageUrl={property.floorPlan?.url} />
+      <PropertyFeatures features={property.features} />
       <PropertyMap address={property.address} />
 
       <div className="flex gap-3">
@@ -69,7 +124,7 @@ export function StepReviewPublish({
           disabled={isPublishing}
           className="h-12 flex-1 rounded-full bg-brand-deepblue text-primary-foreground hover:bg-brand-deepblue-hover"
         >
-          {isPublishing ? "Publishing…" : "Review & Publish"}
+          {isPublishing ? "Saving…" : values.publishNow ? "Publish Property" : "Save as Draft"}
         </Button>
       </div>
     </div>

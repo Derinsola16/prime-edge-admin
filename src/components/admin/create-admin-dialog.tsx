@@ -4,17 +4,17 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { useState } from "react"
 import { AxiosError } from "axios"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, ShieldCheck } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { createAdmin } from "@/services/api/admin"
+import { createAdmin, getPermissionCatalog } from "@/services/api/admin"
 import { ApiErrorResponse } from "@/types/api.types"
-import { ROLE_OPTIONS, PERMISSION_OPTIONS } from "@/types/admin.types"
+import { ROLE_OPTIONS } from "@/types/admin.types"
 import {
   Dialog,
   DialogContent,
@@ -43,17 +43,8 @@ const createAdminSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().min(1, "Email is required").email("Email is invalid"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["admin", "editor", "viewer"], { message: "Role is required" }),
-  permissions: z.array(
-    z.enum([
-      "manage_content",
-      "manage_projects",
-      "manage_products",
-      "manage_users",
-      "manage_inquiries",
-      "view_analytics",
-    ])
-  ),
+  roleType: z.enum(["admin", "support", "custom"], { message: "Role is required" }),
+  permissions: z.array(z.string()),
 })
 
 type CreateAdminFormValues = z.infer<typeof createAdminSchema>
@@ -68,6 +59,11 @@ export function CreateAdminDialog({
   const queryClient = useQueryClient()
   const [showPassword, setShowPassword] = useState(false)
 
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["permission-catalog"],
+    queryFn: getPermissionCatalog,
+  })
+
   const form = useForm<CreateAdminFormValues>({
     resolver: zodResolver(createAdminSchema),
     defaultValues: {
@@ -75,7 +71,7 @@ export function CreateAdminDialog({
       lastName: "",
       email: "",
       password: "",
-      role: "viewer",
+      roleType: "support",
       permissions: [],
     },
   })
@@ -94,9 +90,11 @@ export function CreateAdminDialog({
     },
   })
 
+  const roleType = form.watch("roleType")
   const permissions = form.watch("permissions")
+  const isFullAccess = roleType === "admin"
 
-  const togglePermission = (value: CreateAdminFormValues["permissions"][number]) => {
+  const togglePermission = (value: string) => {
     const next = permissions.includes(value)
       ? permissions.filter(p => p !== value)
       : [...permissions, value]
@@ -115,7 +113,9 @@ export function CreateAdminDialog({
 
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(values => mutation.mutate(values))}
+            onSubmit={form.handleSubmit(values =>
+              mutation.mutate({ ...values, permissions: isFullAccess ? [] : values.permissions })
+            )}
             className="space-y-4"
           >
             <div className="grid grid-cols-2 gap-4">
@@ -191,11 +191,11 @@ export function CreateAdminDialog({
 
             <FormField
               control={form.control}
-              name="role"
+              name="roleType"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value} onValueChange={v => v && field.onChange(v)}>
                     <FormControl>
                       <SelectTrigger className="h-11 w-full">
                         <SelectValue placeholder="Select a role" />
@@ -209,28 +209,47 @@ export function CreateAdminDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {ROLE_OPTIONS.find(r => r.value === field.value)?.description}
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Permissions</label>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-border p-4">
-                {PERMISSION_OPTIONS.map(permission => (
-                  <label
-                    key={permission.value}
-                    className="flex items-center gap-2 text-sm text-foreground"
-                  >
-                    <Checkbox
-                      checked={permissions.includes(permission.value)}
-                      onCheckedChange={() => togglePermission(permission.value)}
-                    />
-                    {permission.label}
-                  </label>
-                ))}
+            {isFullAccess ? (
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary p-4 text-sm text-foreground">
+                <ShieldCheck className="size-4 shrink-0 text-brand-deepblue" />
+                Full access to every module — same as Super Admin.
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Permissions</label>
+                <div className="max-h-64 space-y-4 overflow-y-auto rounded-lg border border-border p-4">
+                  {catalog.map(group => (
+                    <div key={group.module}>
+                      <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        {group.label}
+                      </p>
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                        {group.permissions.map(permission => (
+                          <label
+                            key={permission.value}
+                            className="flex items-center gap-2 text-sm text-foreground"
+                          >
+                            <Checkbox
+                              checked={permissions.includes(permission.value)}
+                              onCheckedChange={() => togglePermission(permission.value)}
+                            />
+                            {permission.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 border-t border-border pt-4">
               <Button

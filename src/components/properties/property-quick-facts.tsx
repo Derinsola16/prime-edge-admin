@@ -1,36 +1,37 @@
-import { MapPin, Clock, BedDouble, TrendingUp } from "lucide-react"
+import { MapPin, BedDouble, Bath, Ruler } from "lucide-react"
 
 import { IPropertyDetail } from "@/types/property.types"
 
-export function PropertyQuickFacts({
-  property,
-}: {
-  property: IPropertyDetail
-}) {
+export function PropertyQuickFacts({ property }: { property: IPropertyDetail }) {
   const facts = [
     {
       icon: MapPin,
-      label: "Location",
-      value: property.location_label,
-      note: property.location_note,
-    },
-    {
-      icon: Clock,
-      label: "Duration",
-      value: property.duration_label,
-      note: property.duration_note,
+      label: "Project",
+      value: property.project?.title ?? "Unassigned",
+      note: property.project?.location
+        ? `${property.project.location.city}, ${property.project.location.state}`
+        : undefined,
     },
     {
       icon: BedDouble,
       label: "Bedrooms",
-      value: String(property.bedrooms),
-      note: property.has_bq ? "+BQ" : undefined,
+      value: property.bedrooms !== undefined ? String(property.bedrooms) : "—",
+      note: property.toilets !== undefined ? `${property.toilets} toilets` : undefined,
     },
     {
-      icon: TrendingUp,
-      label: "Projected IRR",
-      value: `${property.projected_irr}%`,
-      note: "Yearly Growth",
+      icon: Bath,
+      label: "Bathrooms",
+      value: property.bathrooms !== undefined ? String(property.bathrooms) : "—",
+      note: property.parkingSpaces !== undefined ? `${property.parkingSpaces} parking` : undefined,
+    },
+    {
+      icon: Ruler,
+      label: "Size",
+      value: property.size !== undefined ? `${property.size} sqm` : "—",
+      note:
+        property.floor !== undefined
+          ? `Floor ${property.floor}${property.totalFloors ? ` of ${property.totalFloors}` : ""}`
+          : undefined,
       accent: true,
     },
   ]

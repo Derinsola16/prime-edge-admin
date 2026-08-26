@@ -1,4 +1,4 @@
-import { Users, ShieldCheck, PenLine, Eye } from "lucide-react"
+import { Users, ShieldCheck, Headset, SlidersHorizontal } from "lucide-react"
 
 import { IAdminMetrics } from "@/types/admin.types"
 
@@ -6,12 +6,12 @@ export function AdminMetrics({ metrics }: { metrics: IAdminMetrics }) {
   const items = [
     { label: "Total Admins", value: metrics.total, icon: Users },
     { label: "Admin Role", value: metrics.admin, icon: ShieldCheck },
-    { label: "Editor Role", value: metrics.editor, icon: PenLine },
-    { label: "Viewer Role", value: metrics.viewer, icon: Eye },
+    { label: "Support Role", value: metrics.support, icon: Headset },
+    { label: "Custom Role", value: metrics.custom, icon: SlidersHorizontal },
   ]
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {items.map(item => (
         <div
           key={item.label}

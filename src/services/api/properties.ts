@@ -1,227 +1,321 @@
-import { ApiSuccessResponse, ICursorPagination } from "@/types/api.types"
+import { http } from "@/utils/axios"
+import { ApiSuccessResponse, PaginatedResponse } from "@/types/api.types"
 import {
   IProperty,
   IPropertyDetail,
+  IPropertyImage,
   IPropertyMetrics,
+  IPropertyPaymentPlan,
+  IPropertyProjectRef,
   GetPropertiesPayload,
+  ProductStatus,
+  ProductType,
 } from "@/types/property.types"
 
-// TODO: replace with real API calls once the backend endpoint is ready.
-// import { http } from "@/utils/axios"
-
-const MOCK_METRICS: IPropertyMetrics = {
-  total_properties: 25,
-  completed_projects: 13,
-  ongoing_projects: 10,
-  delivered_homes: 2,
+type RawProjectRef = {
+  _id: string
+  title: string
+  slug?: string
+  status?: string
+  location?: IPropertyProjectRef["location"]
 }
 
-const MOCK_PROPERTIES: IProperty[] = [
-  {
-    id: "p1",
-    name: "4 Bedroom Terrace + BQ",
-    thumbnail_url: "/assets/images/properties/property-1.png",
-    location: "The Haven • Victoria Island, Lagos Nigeria",
-    units: 4,
-    status: "construction",
-    construction_progress: 65,
-    truscrow_verified: true,
-  },
-  {
-    id: "p2",
-    name: "4 Bedroom Penthouse + BQs",
-    thumbnail_url: "/assets/images/properties/property-2.png",
-    location: "Ivie Tower • Victoria Island, Lagos Nigeria",
-    units: 10,
-    status: "operational",
-    truscrow_verified: true,
-  },
-  {
-    id: "p3",
-    name: "2-Bedroom Apartments",
-    thumbnail_url: "/assets/images/properties/property-2.png",
-    location: "The Haven • Victoria Island, Lagos Nigeria",
-    units: 3,
-    status: "construction",
-    construction_progress: 15,
-    truscrow_verified: true,
-  },
-  {
-    id: "p4",
-    name: "3-Bedroom Terrace",
-    thumbnail_url: "/assets/images/properties/property-1.png",
-    location: "The Alfred • Victoria Island, Lagos Nigeria",
-    units: 2,
-    status: "completed",
-    truscrow_verified: true,
-  },
-  {
-    id: "p5",
-    name: "4-Bedroom Terrace",
-    thumbnail_url: "/assets/images/properties/property-1.png",
-    location: "Bakers Court • Victoria Island, Lagos Nigeria",
-    units: 5,
-    status: "completed",
-    truscrow_verified: true,
-  },
-]
-
-const MOCK_PROPERTY_DETAIL: IPropertyDetail = {
-  id: "p1",
-  name: "4 Bedroom Terrace + BQs",
-  estate_name: "The Haven",
-  address: "Waziri Ibrahim Crescent, Victoria Island, Lagos Nigeria",
-  images: [
-    "/assets/images/properties/property-1.png",
-    "/assets/images/properties/property-2.png",
-    "/assets/images/properties/property-1.png",
-    "/assets/images/properties/property-2.png",
-  ],
-  location_label: "Victoria Island",
-  location_note: "Waziri Ibrahim Crescent, Victoria Island",
-  duration_label: "24 months",
-  duration_note: "From statutory building approval.",
-  bedrooms: 2,
-  has_bq: true,
-  projected_irr: 18.5,
-  property_type: "Residential Luxury",
-  developer: "Prime Edge",
-  tenure: "Freehold",
-  completion_label: "Q4 2024",
-  description:
-    "The Haven Residence is an exclusive residential enclave set on Waziri Ibrahim Crescent, Victoria Island—one of the city's most established and secure neighbourhoods. Occupying a 3,600 sqm site, the development is intentionally limited to just 20 residences, allowing space, privacy, and calm to define everyday living. Designed as a retreat within the city, The Haven balances architectural clarity with functional elegance, offering homes that feel composed, spacious, and enduring. This is not a high-density development. It is a considered place to live—and to hold.",
-  target_irr: 12.5,
-  exp_cash_yield: 4.2,
-  min_investment: 25_000_000,
-  funding_raised: 4_200_000,
-  funding_target: 25_000_000,
-  funding_percent: 84,
-  days_left: 5,
-  units_available: 18,
-  units_bought: 14,
-  risk_rating: "A",
-  documents: [
-    {
-      id: "d1",
-      label: "Investment Memorandum",
-      format: "PDF",
-      size_label: "2.4 MB",
-      url: "#",
-    },
-    {
-      id: "d2",
-      label: "Legal Title Report",
-      format: "PDF",
-      size_label: "5.1 MB",
-      url: "#",
-    },
-    {
-      id: "d3",
-      label: "Technical Survey",
-      format: "PDF",
-      size_label: "2.4 MB",
-      url: "#",
-    },
-    {
-      id: "d4",
-      label: "Financial Model",
-      format: "PDF",
-      size_label: "5.1 MB",
-      url: "#",
-    },
-  ],
-  floor_plan_url: "/assets/images/properties/property-1.png",
-  amenities: [
-    { id: "a1", label: "Landscaped courtyards and green walkways", icon: "trees" },
-    { id: "a2", label: "A residents-only swimming pool and lounge", icon: "waves" },
-    { id: "a3", label: "A fully equipped wellness and fitness centre", icon: "heart-pulse" },
-    { id: "a4", label: "Smart access control and CCTV surveillance", icon: "qr-code" },
-    { id: "a5", label: "Dedicated power supply and water treatment systems", icon: "zap" },
-    { id: "a6", label: "Concierge-style service areas", icon: "concierge-bell" },
-    { id: "a7", label: "24-hour security and professional facility management", icon: "shield-check" },
-    { id: "a8", label: "Ample private parking", icon: "square-parking" },
-  ],
-  growth: [
-    { month: "Sep", revenue: 18000, projected: 17000 },
-    { month: "Oct", revenue: 22000, projected: 19000 },
-    { month: "Nov", revenue: 19500, projected: 21000 },
-    { month: "Dec", revenue: 24000, projected: 22500 },
-    { month: "Jan", revenue: 27000, projected: 24000 },
-    { month: "Feb", revenue: 25500, projected: 26000 },
-    { month: "Mar", revenue: 29000, projected: 27500 },
-    { month: "Apr", revenue: 31000, projected: 29000 },
-    { month: "May", revenue: 28500, projected: 30500 },
-    { month: "Jun", revenue: 33000, projected: 32000 },
-    { month: "Jul", revenue: 35800, projected: 33500 },
-    { month: "Aug", revenue: 34000, projected: 35000 },
-  ],
-  overall_revenue_label: "$35.8K",
-  current_valuation: 25_000_000,
-  share_price: 1_000_000,
-  hold_period: "Forever",
-  min_investment_amount: 5_000_000,
+type RawProduct = {
+  _id: string
+  title: string
+  slug: string
+  project: RawProjectRef | string | null
+  type: ProductType
+  status: ProductStatus
+  description?: string
+  price: number
+  priceLabel?: string
+  size?: number
+  bedrooms?: number
+  bathrooms?: number
+  toilets?: number
+  parkingSpaces?: number
+  floor?: number
+  totalFloors?: number
+  features: string[]
+  images: (IPropertyImage & { _id?: string })[]
+  floorPlan?: { url: string; publicId: string }
+  virtualTourUrl?: string
+  isFeatured: boolean
+  isPublished: boolean
+  serviceCharge?: number
+  paymentPlans: IPropertyPaymentPlan[]
+  createdAt: string
+  updatedAt: string
 }
 
-export async function getPropertyMetrics(): Promise<
-  ApiSuccessResponse<IPropertyMetrics>
-> {
-  // const res = await http.get("/api/properties/metrics")
-  // return res.data
+function mapProjectRef(project: RawProduct["project"]): IPropertyProjectRef | null {
+  if (!project || typeof project === "string") return null
+  return {
+    id: project._id,
+    title: project.title,
+    slug: project.slug,
+    status: project.status,
+    location: project.location,
+  }
+}
 
-  await new Promise(resolve => setTimeout(resolve, 300))
+function formatLocation(project: IPropertyProjectRef | null): string {
+  if (!project) return "No project assigned"
+  const loc = project.location
+  if (!loc) return project.title
+  return `${project.title} • ${loc.city}, ${loc.state}`
+}
 
-  return { message: "ok", data: MOCK_METRICS }
+function mapProperty(raw: RawProduct): IProperty {
+  const project = mapProjectRef(raw.project)
+
+  return {
+    id: raw._id,
+    name: raw.title,
+    slug: raw.slug,
+    thumbnail_url: raw.images?.[0]?.url ?? "",
+    location: formatLocation(project),
+    type: raw.type,
+    bedrooms: raw.bedrooms,
+    price: raw.price,
+    priceLabel: raw.priceLabel,
+    status: raw.status,
+    isPublished: raw.isPublished,
+    isFeatured: raw.isFeatured,
+    project,
+    createdAt: raw.createdAt,
+  }
+}
+
+function mapPropertyDetail(raw: RawProduct): IPropertyDetail {
+  const project = mapProjectRef(raw.project)
+
+  return {
+    id: raw._id,
+    name: raw.title,
+    slug: raw.slug,
+    description: raw.description,
+    project,
+    address: project?.location
+      ? `${project.location.address}, ${project.location.city}, ${project.location.state}`
+      : "Address unavailable",
+    images: (raw.images ?? []).map(img => ({
+      id: img._id,
+      url: img.url,
+      publicId: img.publicId,
+      caption: img.caption,
+    })),
+    type: raw.type,
+    status: raw.status,
+    size: raw.size,
+    bedrooms: raw.bedrooms,
+    bathrooms: raw.bathrooms,
+    toilets: raw.toilets,
+    parkingSpaces: raw.parkingSpaces,
+    floor: raw.floor,
+    totalFloors: raw.totalFloors,
+    price: raw.price,
+    priceLabel: raw.priceLabel,
+    serviceCharge: raw.serviceCharge,
+    paymentPlans: raw.paymentPlans ?? [],
+    features: raw.features ?? [],
+    floorPlan: raw.floorPlan,
+    virtualTourUrl: raw.virtualTourUrl,
+    isFeatured: raw.isFeatured,
+    isPublished: raw.isPublished,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  }
+}
+
+function filterToParams(filter: GetPropertiesPayload["filter"]) {
+  switch (filter) {
+    case "available":
+    case "reserved":
+    case "sold":
+    case "off_plan":
+      return { status: filter }
+    case "drafts":
+      return { isPublished: false }
+    case "featured":
+      return { isFeatured: true }
+    default:
+      return {}
+  }
 }
 
 export async function getProperties(
   payload: GetPropertiesPayload
-): Promise<
-  ApiSuccessResponse<{ items: IProperty[]; pagination: ICursorPagination }>
-> {
-  // const res = await http.get("/api/properties", { params: payload })
-  // return res.data
-
-  void payload
-
-  await new Promise(resolve => setTimeout(resolve, 300))
+): Promise<{ items: IProperty[]; total: number; page: number; pages: number; limit: number }> {
+  const res = await http.get<PaginatedResponse<RawProduct>>("/products/admin", {
+    params: {
+      page: payload.page ?? 1,
+      limit: payload.limit ?? 10,
+      search: payload.search || undefined,
+      ...filterToParams(payload.filter),
+    },
+  })
 
   return {
-    message: "ok",
-    data: {
-      items: MOCK_PROPERTIES,
-      pagination: {
-        per_page: 10,
-        has_next_page: true,
-        has_prev_page: false,
-        prev_page_cursor: "",
-        next_page_cursor: "2",
-      },
-    },
+    items: res.data.data.map(mapProperty),
+    total: res.data.pagination.total,
+    page: res.data.pagination.page,
+    pages: res.data.pagination.pages,
+    limit: res.data.pagination.limit,
   }
 }
 
-export async function getPropertyById(
-  id: string
-): Promise<ApiSuccessResponse<IPropertyDetail>> {
-  // const res = await http.get(`/api/properties/${id}`)
-  // return res.data
+export async function getPropertyMetrics(): Promise<IPropertyMetrics> {
+  const [total, publishedRes, available, drafts] = await Promise.all([
+    getProperties({ limit: 1 }),
+    http.get<PaginatedResponse<RawProduct>>("/products/admin", { params: { limit: 1, isPublished: true } }),
+    getProperties({ limit: 1, filter: "available" }),
+    getProperties({ limit: 1, filter: "drafts" }),
+  ])
 
-  void id
+  return {
+    total_properties: total.total,
+    published: publishedRes.data.pagination.total,
+    available: available.total,
+    drafts: drafts.total,
+  }
+}
 
-  await new Promise(resolve => setTimeout(resolve, 300))
+export async function getPropertyById(id: string): Promise<ApiSuccessResponse<IPropertyDetail>> {
+  const res = await http.get<ApiSuccessResponse<RawProduct>>(`/products/admin/${id}`)
+  return { message: res.data.message, data: mapPropertyDetail(res.data.data) }
+}
 
-  return { message: "ok", data: MOCK_PROPERTY_DETAIL }
+export type CreatePropertyPayload = {
+  title: string
+  type: ProductType
+  description?: string
+  price: number
+  priceLabel?: string
+  size?: number
+  bedrooms?: number
+  bathrooms?: number
+  toilets?: number
+  parkingSpaces?: number
+  floor?: number
+  totalFloors?: number
+  serviceCharge?: number
+  paymentPlans: IPropertyPaymentPlan[]
+  features: string[]
+  virtualTourUrl?: string
+  isFeatured: boolean
+  isPublished: boolean
+  status: ProductStatus
 }
 
 export async function createProperty(
-  payload: Record<string, unknown>
-): Promise<ApiSuccessResponse<{ id: string }>> {
-  // const res = await http.post("/api/properties", payload)
-  // return res.data
+  projectId: string,
+  payload: CreatePropertyPayload
+): Promise<ApiSuccessResponse<IPropertyDetail>> {
+  const res = await http.post<ApiSuccessResponse<RawProduct>>(
+    `/products/admin/by-project/${projectId}`,
+    payload
+  )
+  return { message: res.data.message, data: mapPropertyDetail(res.data.data) }
+}
 
-  void payload
+export async function updateProperty(
+  id: string,
+  payload: Partial<CreatePropertyPayload>
+): Promise<ApiSuccessResponse<IPropertyDetail>> {
+  const res = await http.put<ApiSuccessResponse<RawProduct>>(`/products/admin/${id}`, payload)
+  return { message: res.data.message, data: mapPropertyDetail(res.data.data) }
+}
 
-  await new Promise(resolve => setTimeout(resolve, 500))
+export async function deleteProperty(id: string): Promise<ApiSuccessResponse<{ id: string }>> {
+  const res = await http.delete<ApiSuccessResponse<unknown>>(`/products/admin/${id}`)
+  return { message: res.data.message, data: { id } }
+}
 
-  return { message: "ok", data: { id: `p${Date.now()}` } }
+export async function togglePropertyPublish(
+  id: string
+): Promise<ApiSuccessResponse<{ isPublished: boolean }>> {
+  const res = await http.patch<ApiSuccessResponse<{ isPublished: boolean }>>(
+    `/products/admin/${id}/toggle-publish`
+  )
+  return res.data
+}
+
+export async function togglePropertyFeatured(
+  id: string
+): Promise<ApiSuccessResponse<{ isFeatured: boolean }>> {
+  const res = await http.patch<ApiSuccessResponse<{ isFeatured: boolean }>>(
+    `/products/admin/${id}/toggle-featured`
+  )
+  return res.data
+}
+
+export async function addPropertyImage(
+  id: string,
+  file: File,
+  caption?: string
+): Promise<ApiSuccessResponse<{ url: string; publicId: string }>> {
+  const formData = new FormData()
+  formData.append("image", file)
+  if (caption) formData.append("caption", caption)
+
+  const res = await http.post<ApiSuccessResponse<{ url: string; publicId: string }>>(
+    `/products/admin/${id}/images`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  )
+  return res.data
+}
+
+export async function removePropertyImage(
+  id: string,
+  publicId: string
+): Promise<ApiSuccessResponse<unknown>> {
+  const res = await http.delete(`/products/admin/${id}/images/${encodeURIComponent(publicId)}`)
+  return res.data
+}
+
+export async function uploadPropertyFloorPlan(
+  id: string,
+  file: File
+): Promise<ApiSuccessResponse<{ floorPlan: string }>> {
+  const formData = new FormData()
+  formData.append("image", file)
+
+  const res = await http.put<ApiSuccessResponse<{ floorPlan: string }>>(
+    `/products/admin/${id}/floor-plan`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  )
+  return res.data
+}
+
+// ── Projects (for the property → project picker) ───────────────────────────
+
+export type IProjectOption = {
+  id: string
+  title: string
+  status: string
+  location: { address: string; city: string; state: string; country: string }
+}
+
+type RawProject = {
+  _id: string
+  title: string
+  status: string
+  location: IProjectOption["location"]
+}
+
+export async function getProjectOptions(search?: string): Promise<IProjectOption[]> {
+  const res = await http.get<PaginatedResponse<RawProject>>("/projects/admin", {
+    params: { limit: 100, search: search || undefined },
+  })
+
+  return res.data.data.map(p => ({
+    id: p._id,
+    title: p.title,
+    status: p.status,
+    location: p.location,
+  }))
 }

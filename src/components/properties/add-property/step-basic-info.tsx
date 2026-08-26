@@ -3,35 +3,35 @@ import { UseFormReturn } from "react-hook-form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { AddPropertyFormValues, PaymentPlanOption } from "@/types/add-property.types"
-import { BoxedRadioOption, BoxedCheckboxOption } from "@/components/properties/add-property/boxed-option"
-
-const paymentPlanOptions: { value: PaymentPlanOption; label: string }[] = [
-  { value: "one_time", label: "One time" },
-  { value: "12_months", label: "12 months" },
-  { value: "24_months", label: "24 months" },
-]
+import { AddPropertyFormValues } from "@/types/add-property.types"
+import { PRODUCT_TYPE_OPTIONS } from "@/types/property.types"
+import { IProjectOption } from "@/services/api/properties"
+import { BoxedRadioOption } from "@/components/properties/add-property/boxed-option"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function StepBasicInfo({
   form,
+  projects,
+  projectsLoading,
   onNext,
 }: {
   form: UseFormReturn<AddPropertyFormValues>
+  projects: IProjectOption[]
+  projectsLoading: boolean
   onNext: () => void
 }) {
   const { register, watch, setValue } = form
-  const category = watch("category")
-  const feature = watch("feature_property")
-  const paymentPlan = watch("payment_plan")
+  const projectId = watch("projectId")
+  const type = watch("type")
+  const isFeatured = watch("isFeatured")
 
-  const togglePaymentPlan = (value: PaymentPlanOption) => {
-    setValue(
-      "payment_plan",
-      paymentPlan.includes(value)
-        ? paymentPlan.filter(p => p !== value)
-        : [...paymentPlan, value]
-    )
-  }
+  const canProceed = Boolean(projectId && watch("title").trim() && type)
 
   return (
     <div className="space-y-6">
@@ -42,147 +42,111 @@ export function StepBasicInfo({
         </h2>
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          Property name
-        </label>
-        <Input placeholder="Name" className="h-12" {...register("property_name")} />
+      {!projectsLoading && projects.length === 0 && (
+        <p className="rounded-lg border border-dashed border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+          No projects exist yet. A property must belong to a project — create one in Website CMS →
+          Projects first.
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Project</label>
+          <Select value={projectId} onValueChange={v => setValue("projectId", v ?? "")}>
+            <SelectTrigger className="h-12 w-full">
+              <SelectValue placeholder={projectsLoading ? "Loading projects…" : "Select a project"} />
+            </SelectTrigger>
+            <SelectContent>
+              {projects.map(p => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.title} • {p.location.city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Property Type</label>
+          <Select
+            value={type}
+            onValueChange={v => setValue("type", (v ?? "") as AddPropertyFormValues["type"])}
+          >
+            <SelectTrigger className="h-12 w-full">
+              <SelectValue placeholder="Select a type" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRODUCT_TYPE_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Property name</label>
+        <Input placeholder="E.g 4 Bedroom Terrace + BQ" className="h-12" {...register("title")} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Description</label>
+        <Textarea rows={5} placeholder="Describe this property…" {...register("description")} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Location</label>
-          <Input placeholder="Name" className="h-12" {...register("location")} />
+          <label className="text-sm font-medium text-foreground">Bedrooms</label>
+          <Input type="number" min={0} placeholder="0" className="h-12" {...register("bedrooms")} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Project type
-          </label>
-          <Input
-            placeholder="E.g The Haven"
-            className="h-12"
-            {...register("project_type")}
-          />
+          <label className="text-sm font-medium text-foreground">Bathrooms</label>
+          <Input type="number" min={0} placeholder="0" className="h-12" {...register("bathrooms")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Toilets</label>
+          <Input type="number" min={0} placeholder="0" className="h-12" {...register("toilets")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Parking</label>
+          <Input type="number" min={0} placeholder="0" className="h-12" {...register("parkingSpaces")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Floor</label>
+          <Input type="number" min={0} placeholder="0" className="h-12" {...register("floor")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Size (sqm)</label>
+          <Input type="number" min={0} placeholder="0" className="h-12" {...register("size")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Total Floors</label>
+          <Input type="number" min={0} placeholder="0" className="h-12" {...register("totalFloors")} />
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">Category</label>
+        <label className="text-sm font-medium text-foreground">Feature this property?</label>
         <div className="flex gap-4">
           <BoxedRadioOption
-            label="Residential"
-            checked={category === "residential"}
-            onSelect={() => setValue("category", "residential")}
+            label="Yes"
+            checked={isFeatured}
+            onSelect={() => setValue("isFeatured", true)}
           />
           <BoxedRadioOption
-            label="Commercial"
-            checked={category === "commercial"}
-            onSelect={() => setValue("category", "commercial")}
-          />
-          <BoxedRadioOption
-            label="Mixed Use"
-            checked={category === "mixed_use"}
-            onSelect={() => setValue("category", "mixed_use")}
+            label="No"
+            checked={!isFeatured}
+            onSelect={() => setValue("isFeatured", false)}
           />
         </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          Project description or Overview
-        </label>
-        <Textarea rows={5} {...register("description")} />
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Duration</label>
-          <Input
-            placeholder="E.g 24months"
-            className="h-12"
-            {...register("duration")}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            No of Bedrooms
-          </label>
-          <Input
-            type="number"
-            placeholder="0"
-            className="h-12"
-            {...register("bedrooms")}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Number of Units
-          </label>
-          <Input
-            type="number"
-            placeholder="0"
-            className="h-12"
-            {...register("units")}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Projected IRR
-          </label>
-          <Input
-            placeholder="E.g 18.5%"
-            className="h-12"
-            {...register("projected_irr")}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Feature Property?
-          </label>
-          <div className="flex gap-4">
-            <BoxedRadioOption
-              label="Yes"
-              checked={feature === "yes"}
-              onSelect={() => setValue("feature_property", "yes")}
-            />
-            <BoxedRadioOption
-              label="No"
-              checked={feature === "no"}
-              onSelect={() => setValue("feature_property", "no")}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          Payment Plan
-        </label>
-        <div className="flex gap-4">
-          {paymentPlanOptions.map(option => (
-            <BoxedCheckboxOption
-              key={option.value}
-              label={option.label}
-              checked={paymentPlan.includes(option.value)}
-              onToggle={() => togglePaymentPlan(option.value)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          Full Address
-        </label>
-        <Input placeholder="Address" className="h-12" {...register("full_address")} />
       </div>
 
       <Button
         type="button"
         onClick={onNext}
+        disabled={!canProceed}
         className="h-12 w-full rounded-full bg-brand-deepblue text-primary-foreground hover:bg-brand-deepblue-hover"
       >
         Proceed to Section B →

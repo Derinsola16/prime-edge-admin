@@ -1,40 +1,49 @@
-export type PropertyCategory = "residential" | "commercial" | "mixed_use"
+import { ProductStatus, ProductType } from "@/types/property.types"
 
 export type PaymentPlanOption = "one_time" | "12_months" | "24_months"
 
+export type PendingImage = {
+  file: File
+  previewUrl: string
+}
+
 export type AddPropertyFormValues = {
   // Section A - Basic Info
-  property_name: string
-  location: string
-  project_type: string
-  category: PropertyCategory
+  projectId: string
+  title: string
+  type: ProductType | ""
   description: string
-  duration: string
   bedrooms: string
-  units: string
-  projected_irr: string
-  feature_property: "yes" | "no"
-  payment_plan: PaymentPlanOption[]
-  full_address: string
+  bathrooms: string
+  toilets: string
+  parkingSpaces: string
+  floor: string
+  totalFloors: string
+  size: string
+  isFeatured: boolean
 
-  // Section B - Finance
-  property_price: string
-  min_investment: string
-  finance_projected_irr: string
-  exp_cash_yield: string
+  // Section B - Pricing
+  price: string
+  priceLabel: string
+  serviceCharge: string
+  paymentPlans: PaymentPlanOption[]
 
-  // Section C - Media & Docs
-  virtual_tour_link: string
+  // Section C - Media
+  virtualTourUrl: string
 
-  // Section D - Amenities
-  amenities: string[]
+  // Section D - Features
+  features: string[]
+
+  // Section E - Review & Publish
+  status: ProductStatus
+  publishNow: boolean
 }
 
 export type AddPropertyStepId =
   | "basic-info"
-  | "finance"
-  | "media-docs"
-  | "amenities"
+  | "pricing"
+  | "media"
+  | "features"
   | "review-publish"
 
 export const ADD_PROPERTY_STEPS: {
@@ -43,8 +52,18 @@ export const ADD_PROPERTY_STEPS: {
   label: string
 }[] = [
   { id: "basic-info", letter: "A", label: "Basic Info" },
-  { id: "finance", letter: "B", label: "Finance" },
-  { id: "media-docs", letter: "C", label: "Media & Docs" },
-  { id: "amenities", letter: "D", label: "Amenities" },
+  { id: "pricing", letter: "B", label: "Pricing" },
+  { id: "media", letter: "C", label: "Media" },
+  { id: "features", letter: "D", label: "Features" },
   { id: "review-publish", letter: "E", label: "Review & Publish" },
+]
+
+export const PAYMENT_PLAN_OPTIONS: {
+  value: PaymentPlanOption
+  name: string
+  duration?: string
+}[] = [
+  { value: "one_time", name: "One Time Payment", duration: undefined },
+  { value: "12_months", name: "12 Months Payment Plan", duration: "12 months" },
+  { value: "24_months", name: "24 Months Payment Plan", duration: "24 months" },
 ]
