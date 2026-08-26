@@ -1,5 +1,7 @@
 import { WizardStep } from "@/components/shared/wizard-step-indicator"
 
+export type CmsProjectStatusInput = "upcoming" | "ongoing" | "completed" | "on_hold"
+
 export type AddCmsProjectFormValues = {
   project_name: string
   tagline: string
@@ -8,6 +10,8 @@ export type AddCmsProjectFormValues = {
   overview: string
   category: "residential" | "commercial" | "mixed_use"
   full_address: string
+  status: CmsProjectStatusInput
+  construction_progress: string
   about_project: string
   heading: string
   value_tagline: string

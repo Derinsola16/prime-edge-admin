@@ -56,7 +56,7 @@ export default function CmsOverviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
           <h2 className="mb-3 text-lg font-semibold text-foreground">Manage Contacts</h2>
           <ContactInfoForm />

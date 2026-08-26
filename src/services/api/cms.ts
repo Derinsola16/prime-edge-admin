@@ -1,4 +1,8 @@
-import { ApiSuccessResponse } from "@/types/api.types"
+import { isAxiosError } from "axios"
+
+import { http } from "@/utils/axios"
+import { ApiSuccessResponse, PaginatedResponse } from "@/types/api.types"
+import { CmsProjectStatusInput } from "@/types/add-cms-project.types"
 import {
   ICmsFaq,
   ContactInfo,
@@ -8,178 +12,221 @@ import {
   TestimonialStatus,
 } from "@/types/cms.types"
 
-// TODO: replace with real API calls once the backend endpoint is ready.
-// import { http } from "@/utils/axios"
+// ── Projects ─────────────────────────────────────────────────────────────
 
-const MOCK_METRICS: ICmsMetrics = {
-  total_projects: 6,
-  completed_projects: 2,
-  ongoing_projects: 10,
-  faqs: 21,
-  testimonials: 12,
-  contact_info: 4,
+type RawProjectImage = { _id?: string; url: string; publicId: string; caption?: string }
+
+type RawProject = {
+  _id: string
+  title: string
+  slug: string
+  status: CmsProjectStatusInput
+  type: "residential" | "commercial" | "mixed_use" | "land"
+  description: string
+  shortDescription?: string
+  location: { address: string; city?: string; state?: string; country?: string }
+  coverImage?: string
+  images: RawProjectImage[]
+  totalUnits?: number
+  constructionProgress?: number
+  soldUnits?: number
+  isFeatured: boolean
+  isPublished: boolean
+  tagline?: string
+  estimatedDelivery?: string
+  locationLabel?: string
+  heading?: string
+  valueTagline?: string
+  subtext?: string
+  bulletPoints?: string
+  amenitiesDescription?: string
+  mapAddress?: string
+  locationDescription?: string
+  createdAt: string
+  updatedAt: string
 }
 
-const MOCK_PROJECTS: ICmsProject[] = [
-  {
-    id: "cp1",
-    name: "Ivie Towers",
-    hero_image_url: "/assets/images/properties/property-1.png",
-    location: "The Haven • Victoria Island, Lagos Nigeria",
-    units_sold: 5,
-    total_units: 22,
-    status: "construction",
-    construction_progress: 15,
-  },
-  {
-    id: "cp2",
-    name: "The Haven",
-    hero_image_url: "/assets/images/properties/property-2.png",
-    location: "The Haven • Victoria Island, Lagos Nigeria",
-    units_sold: 5,
-    total_units: 22,
-    status: "construction",
-    construction_progress: 75,
-  },
-  {
-    id: "cp3",
-    name: "Baker's Court",
-    hero_image_url: "/assets/images/properties/property-1.png",
-    location: "The Haven • Victoria Island, Lagos Nigeria",
-    units_sold: 5,
-    total_units: 22,
-    status: "completed",
-    sold_out: true,
-  },
-  {
-    id: "cp4",
-    name: "Hampton Bay",
-    hero_image_url: "/assets/images/properties/property-2.png",
-    location: "The Haven • Victoria Island, Lagos Nigeria",
-    units_sold: 5,
-    total_units: 22,
-    status: "construction",
-    construction_progress: 75,
-  },
-  {
-    id: "cp5",
-    name: "The Alfred",
-    hero_image_url: "/assets/images/properties/property-1.png",
-    location: "The Haven • Victoria Island, Lagos Nigeria",
-    units_sold: 5,
-    total_units: 22,
-    status: "construction",
-    construction_progress: 75,
-  },
-]
-
-const MOCK_CONTACT_INFO: ContactInfo = {
-  phone_number: "+1 (555) 012-3456",
-  whatsapp_number: "+1 (555) 012-3456",
-  support_email: "support@primeedge.com",
-  company_email: "info@primeedge.com",
-  address: "100 Crystal Way, Suite 500\nFinancial District, NY 10004",
+// Cloudinary URLs uploaded before the backend was fixed to return `secure_url`
+// are stored as `http://`, which `next/image`'s remote-pattern allowlist (https-only)
+// rejects outright. Normalize defensively so old records don't crash the page.
+function toSecureUrl(url: string): string {
+  return url.replace(/^http:\/\//, "https://")
 }
 
-const MOCK_TESTIMONIALS: ICmsTestimonial[] = MOCK_PROJECTS.flatMap(project =>
-  [1, 2, 3].map((n, i) => ({
-    id: `${project.id}-t${n}`,
-    project_id: project.id,
-    project_name: project.name,
-    full_name: "Sarah Jenkins",
-    occupation: "Chief Operations, Apex",
-    testimony:
-      "The transparency provided by the Operational Crystal dashboard has revolutionized how we report to our stakeholders. Total clarity.",
-    status: (i === 0 ? "new" : "approved") as TestimonialStatus,
-  }))
-)
+function formatProjectLocation(raw: RawProject): string {
+  if (raw.locationLabel) return raw.locationLabel
+  if (raw.location.city && raw.location.state) return `${raw.location.city}, ${raw.location.state}`
+  return raw.location.address
+}
 
-const MOCK_FAQS: ICmsFaq[] = [
-  {
-    id: "f1",
-    category: "General",
-    question: "What is Prime Edge?",
-    answer:
-      "Prime Edge is a real estate development and investment platform focused on structuring and delivering joint venture projects with landowners, capital partners, and strategic off-takers.",
-  },
-  {
-    id: "f2",
-    category: "General",
-    question: "Where does Prime Edge operate?",
-    answer: "Prime Edge currently operates in Lagos and select high-growth urban locations in Nigeria.",
-  },
-  {
-    id: "f3",
-    category: "General",
-    question: "Does Prime Edge buy land outright?",
-    answer:
-      "No. Prime Edge primarily partners with landowners through joint development or structured arrangements rather than outright land purchases.",
-  },
-  {
-    id: "f4",
-    category: "Landowner Partnerships",
-    question: "What type of landowners does Prime Edge work with?",
-    answer: "We work with landowners who have clear title, defined decision authority, and an interest in structured development partnerships.",
-  },
-  {
-    id: "f5",
-    category: "Landowner Partnerships",
-    question: "How does a landowner partnership work?",
-    answer: "The landowner contributes land, Prime Edge leads development and project structuring, and profits are shared based on an agreed framework.",
-  },
-  {
-    id: "f6",
-    category: "Capital / Project Funding",
-    question: "Who can invest with Prime Edge?",
-    answer: "High-net worth individuals, families, corporates, and structured investment entities.",
-  },
-  {
-    id: "f7",
-    category: "Capital / Project Funding",
-    question: "What is the typical investment duration?",
-    answer: "Project tenors typically range from 18 to 36 months, depending on asset type.",
-  },
-]
+function mapCmsProject(raw: RawProject): ICmsProject {
+  const totalUnits = raw.totalUnits ?? 0
+  const unitsSold = raw.soldUnits ?? 0
+
+  return {
+    id: raw._id,
+    name: raw.title,
+    hero_image_url: toSecureUrl(raw.coverImage ?? raw.images?.[0]?.url ?? ""),
+    location: formatProjectLocation(raw),
+    units_sold: unitsSold,
+    total_units: totalUnits,
+    status: !raw.isPublished ? "draft" : raw.status === "completed" ? "completed" : "construction",
+    construction_progress: raw.constructionProgress,
+    sold_out: totalUnits > 0 && unitsSold >= totalUnits,
+  }
+}
+
+export async function getCmsProjects(): Promise<ApiSuccessResponse<{ items: ICmsProject[] }>> {
+  const res = await http.get<PaginatedResponse<RawProject>>("/projects/admin", {
+    params: { limit: 100 },
+  })
+  return { message: "ok", data: { items: res.data.data.map(mapCmsProject) } }
+}
+
+export type CreateCmsProjectPayload = {
+  title: string
+  description: string
+  shortDescription?: string
+  status: CmsProjectStatusInput
+  type: "residential" | "commercial" | "mixed_use" | "land"
+  location: { address: string; city?: string; state?: string; country?: string }
+  constructionProgress?: number
+  isPublished: boolean
+  tagline?: string
+  estimatedDelivery?: string
+  locationLabel?: string
+  heading?: string
+  valueTagline?: string
+  subtext?: string
+  bulletPoints?: string
+  amenitiesDescription?: string
+  mapAddress?: string
+  locationDescription?: string
+}
+
+export async function createCmsProject(
+  payload: CreateCmsProjectPayload
+): Promise<ApiSuccessResponse<{ id: string }>> {
+  const res = await http.post<ApiSuccessResponse<RawProject>>("/projects/admin", payload)
+  return { message: res.data.message, data: { id: res.data.data._id } }
+}
+
+export async function uploadCmsProjectCover(id: string, file: File): Promise<void> {
+  const formData = new FormData()
+  formData.append("image", file)
+  await http.put(`/projects/admin/${id}/cover`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  })
+}
+
+export async function addCmsProjectGalleryImage(
+  id: string,
+  file: File,
+  caption?: string
+): Promise<void> {
+  const formData = new FormData()
+  formData.append("image", file)
+  if (caption) formData.append("caption", caption)
+  await http.post(`/projects/admin/${id}/gallery`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  })
+}
+
+// ── Metrics ──────────────────────────────────────────────────────────────
 
 export async function getCmsMetrics(): Promise<ApiSuccessResponse<ICmsMetrics>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: MOCK_METRICS }
+  const [totalRes, completedRes, ongoingRes, faqsRes, testimonialsRes, contactRes] = await Promise.all([
+    http.get<PaginatedResponse<RawProject>>("/projects/admin", { params: { limit: 1 } }),
+    http.get<PaginatedResponse<RawProject>>("/projects/admin", { params: { limit: 1, status: "completed" } }),
+    http.get<PaginatedResponse<RawProject>>("/projects/admin", { params: { limit: 1, status: "ongoing" } }),
+    getFaqs(),
+    getTestimonials(),
+    getContactInfo(),
+  ])
+
+  const contactFieldsFilled = Object.values(contactRes.data).filter(value => Boolean(value)).length
+
+  return {
+    message: "ok",
+    data: {
+      total_projects: totalRes.data.pagination.total,
+      completed_projects: completedRes.data.pagination.total,
+      ongoing_projects: ongoingRes.data.pagination.total,
+      faqs: faqsRes.data.items.length,
+      testimonials: testimonialsRes.data.items.length,
+      contact_info: contactFieldsFilled,
+    },
+  }
 }
 
-export async function getCmsProjects(): Promise<
-  ApiSuccessResponse<{ items: ICmsProject[] }>
-> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: { items: MOCK_PROJECTS } }
+// ── Generic content-section helpers ─────────────────────────────────────
+// FAQs, testimonials, and contact info all live as freeform JSON inside the
+// backend's generic `content` module (one document per section, keyed by a
+// `ContentSection` enum value) rather than as their own collections.
+
+type RawContentSection<T> = {
+  _id?: string
+  section: string
+  data: T
+  isActive?: boolean
+}
+
+async function getContentSectionData<T>(section: string, fallback: T): Promise<T> {
+  try {
+    const res = await http.get<ApiSuccessResponse<RawContentSection<T>>>(`/content/${section}`)
+    return { ...fallback, ...res.data.data.data }
+  } catch (err) {
+    if (isAxiosError(err) && err.response?.status === 404) return fallback
+    throw err
+  }
+}
+
+async function putContentSectionData<T>(section: string, data: T): Promise<T> {
+  const res = await http.put<ApiSuccessResponse<RawContentSection<T>>>("/content", { section, data })
+  return res.data.data.data
+}
+
+// ── Contact info ─────────────────────────────────────────────────────────
+
+const DEFAULT_CONTACT_INFO: ContactInfo = {
+  phone_number: "",
+  whatsapp_number: "",
+  support_email: "",
+  company_email: "",
+  address: "",
 }
 
 export async function getContactInfo(): Promise<ApiSuccessResponse<ContactInfo>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: MOCK_CONTACT_INFO }
+  const data = await getContentSectionData("contact_info", DEFAULT_CONTACT_INFO)
+  return { message: "ok", data }
 }
 
 export async function updateContactInfo(
   payload: ContactInfo
 ): Promise<ApiSuccessResponse<ContactInfo>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  Object.assign(MOCK_CONTACT_INFO, payload)
-  return { message: "ok", data: MOCK_CONTACT_INFO }
+  const data = await putContentSectionData("contact_info", payload)
+  return { message: "ok", data }
 }
 
-export async function getTestimonials(): Promise<
-  ApiSuccessResponse<{ items: ICmsTestimonial[] }>
-> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: { items: MOCK_TESTIMONIALS } }
+// ── Testimonials ─────────────────────────────────────────────────────────
+
+type TestimonialsData = { items: ICmsTestimonial[] }
+const EMPTY_TESTIMONIALS: TestimonialsData = { items: [] }
+
+export async function getTestimonials(): Promise<ApiSuccessResponse<TestimonialsData>> {
+  const data = await getContentSectionData("testimonials", EMPTY_TESTIMONIALS)
+  return { message: "ok", data: { items: data.items ?? [] } }
 }
 
 export async function updateTestimonialStatus(payload: {
   id: string
   status: TestimonialStatus
 }): Promise<ApiSuccessResponse<{ id: string }>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  const testimonial = MOCK_TESTIMONIALS.find(t => t.id === payload.id)
-  if (testimonial) testimonial.status = payload.status
+  const current = await getContentSectionData("testimonials", EMPTY_TESTIMONIALS)
+  const items = (current.items ?? []).map(t =>
+    t.id === payload.id ? { ...t, status: payload.status } : t
+  )
+  await putContentSectionData("testimonials", { items })
   return { message: "ok", data: { id: payload.id } }
 }
 
@@ -189,9 +236,13 @@ export async function submitTestimonial(payload: {
   project_id: string
   testimony: string
 }): Promise<ApiSuccessResponse<{ id: string }>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  const project = MOCK_PROJECTS.find(p => p.id === payload.project_id)
-  MOCK_TESTIMONIALS.unshift({
+  const [current, projectsRes] = await Promise.all([
+    getContentSectionData("testimonials", EMPTY_TESTIMONIALS),
+    getCmsProjects(),
+  ])
+  const project = projectsRes.data.items.find(p => p.id === payload.project_id)
+
+  const testimonial: ICmsTestimonial = {
     id: `t${Date.now()}`,
     project_id: payload.project_id,
     project_name: project?.name ?? "",
@@ -199,13 +250,20 @@ export async function submitTestimonial(payload: {
     occupation: payload.occupation,
     testimony: payload.testimony,
     status: "new",
-  })
-  return { message: "ok", data: { id: `t${Date.now()}` } }
+  }
+
+  await putContentSectionData("testimonials", { items: [testimonial, ...(current.items ?? [])] })
+  return { message: "ok", data: { id: testimonial.id } }
 }
 
-export async function getFaqs(): Promise<ApiSuccessResponse<{ items: ICmsFaq[] }>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { message: "ok", data: { items: MOCK_FAQS } }
+// ── FAQs ─────────────────────────────────────────────────────────────────
+
+type FaqsData = { items: ICmsFaq[] }
+const EMPTY_FAQS: FaqsData = { items: [] }
+
+export async function getFaqs(): Promise<ApiSuccessResponse<FaqsData>> {
+  const data = await getContentSectionData("faqs", EMPTY_FAQS)
+  return { message: "ok", data: { items: data.items ?? [] } }
 }
 
 export async function createFaq(payload: {
@@ -213,16 +271,8 @@ export async function createFaq(payload: {
   answer: string
   project_id?: string
 }): Promise<ApiSuccessResponse<ICmsFaq>> {
-  await new Promise(resolve => setTimeout(resolve, 300))
+  const current = await getContentSectionData("faqs", EMPTY_FAQS)
   const faq: ICmsFaq = { id: `f${Date.now()}`, category: "General", ...payload }
-  MOCK_FAQS.unshift(faq)
+  await putContentSectionData("faqs", { items: [faq, ...(current.items ?? [])] })
   return { message: "ok", data: faq }
-}
-
-export async function createCmsProject(
-  payload: Record<string, unknown>
-): Promise<ApiSuccessResponse<{ id: string }>> {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  void payload
-  return { message: "ok", data: { id: `cp${Date.now()}` } }
 }

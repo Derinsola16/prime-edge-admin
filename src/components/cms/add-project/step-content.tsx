@@ -45,7 +45,7 @@ export function StepContent({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-1.5">
           <p className="text-sm font-medium text-foreground">About the Project</p>
           <RichTextField
@@ -70,7 +70,7 @@ export function StepContent({
       <div className="border-t border-border pt-6">
         <h3 className="mb-4 text-lg font-semibold text-foreground">Value Proposition</h3>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Heading</label>
             <Input
@@ -89,7 +89,7 @@ export function StepContent({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Subtext</label>
             <Textarea rows={5} {...register("subtext")} />
