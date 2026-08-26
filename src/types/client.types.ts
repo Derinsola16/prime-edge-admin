@@ -1,5 +1,25 @@
 export type KycStatus = "pending" | "approved" | "rejected"
 
+// Real shape returned by GET /admin/users — platform end-users (investors/clients).
+export type IUserListItem = {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  avatar?: string
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    country?: string
+  }
+  isVerified: boolean
+  isActive: boolean
+  lastLogin?: string
+  createdAt: string
+}
+
 export type IClient = {
   id: string
   name: string

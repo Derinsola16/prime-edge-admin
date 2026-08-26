@@ -1,13 +1,13 @@
-import { Users, FileText, UserCog, UserPlus } from "lucide-react"
+import { Users, ShieldCheck, PenLine, Eye } from "lucide-react"
 
 import { IAdminMetrics } from "@/types/admin.types"
 
 export function AdminMetrics({ metrics }: { metrics: IAdminMetrics }) {
   const items = [
-    { label: "Total Admin", value: metrics.total_admin, icon: Users },
-    { label: "Finance Admin", value: metrics.finance_admin, icon: FileText },
-    { label: "Client Managers", value: metrics.client_managers, icon: UserCog },
-    { label: "Super Admin", value: metrics.super_admin, icon: UserPlus },
+    { label: "Total Admins", value: metrics.total, icon: Users },
+    { label: "Admin Role", value: metrics.admin, icon: ShieldCheck },
+    { label: "Editor Role", value: metrics.editor, icon: PenLine },
+    { label: "Viewer Role", value: metrics.viewer, icon: Eye },
   ]
 
   return (

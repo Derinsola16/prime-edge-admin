@@ -1,41 +1,72 @@
 "use client"
 
 import Link from "next/link"
+import { toast } from "sonner"
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { Search, Download, SlidersHorizontal, ChevronDown, Eye } from "lucide-react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { Search, Eye, MoreHorizontal } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { getClientMetrics, getClients } from "@/services/api/clients"
+import { buttonVariants } from "@/components/ui/button"
+import { getClientMetrics, getUsers, deleteUser, toggleUserStatus } from "@/services/api/clients"
 import { Pagination } from "@/components/shared/pagination"
 import { ClientMetrics } from "@/components/clients/client-metrics"
-import { KycStatusBadge } from "@/components/clients/kyc-status-badge"
-import { KycStatus } from "@/types/client.types"
+import { AdminStatusBadge } from "@/components/admin/admin-status-badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-const filters: { label: string; value: "all" | KycStatus }[] = [
+const filters: { label: string; value: "all" | "verified" | "unverified" }[] = [
   { label: "All", value: "all" },
-  { label: "Pending", value: "pending" },
-  { label: "Approved", value: "approved" },
-  { label: "Rejected", value: "rejected" },
+  { label: "Verified", value: "verified" },
+  { label: "Unverified", value: "unverified" },
 ]
 
+const PAGE_SIZE = 10
+
 export default function ClientsPage() {
-  const [filter, setFilter] = useState<"all" | KycStatus>("all")
+  const queryClient = useQueryClient()
+  const [filter, setFilter] = useState<"all" | "verified" | "unverified">("all")
   const [page, setPage] = useState(1)
 
   const { data: metricsRes } = useQuery({
     queryKey: ["client-metrics"],
     queryFn: getClientMetrics,
   })
-  const { data: clientsRes, isLoading } = useQuery({
-    queryKey: ["clients"],
-    queryFn: getClients,
+  const { data: usersRes, isLoading } = useQuery({
+    queryKey: ["users", page, filter],
+    queryFn: () =>
+      getUsers({
+        page,
+        limit: PAGE_SIZE,
+        isVerified: filter === "all" ? undefined : filter === "verified",
+      }),
   })
 
-  const clients = (clientsRes?.data.items ?? []).filter(
-    c => filter === "all" || c.kyc_status === filter
-  )
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      toast.success("User removed")
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+    onError: () => toast.error("Failed to remove user"),
+  })
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: toggleUserStatus,
+    onSuccess: () => {
+      toast.success("Status updated")
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+    onError: () => toast.error("Failed to update status"),
+  })
+
+  const users = usersRes?.items ?? []
+  const total = usersRes?.total ?? 0
+  const pages = usersRes?.pages ?? 1
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,9 +89,6 @@ export default function ClientsPage() {
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">Clients</h2>
-          <Button variant="link" size="sm" className="text-brand-skyblue">
-            See all
-          </Button>
         </div>
 
         <div className="mb-4 flex items-center justify-between">
@@ -68,7 +96,10 @@ export default function ClientsPage() {
             {filters.map(f => (
               <button
                 key={f.value}
-                onClick={() => setFilter(f.value)}
+                onClick={() => {
+                  setFilter(f.value)
+                  setPage(1)
+                }}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                   filter === f.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
                 }`}
@@ -77,61 +108,69 @@ export default function ClientsPage() {
               </button>
             ))}
           </div>
-
-          <Button variant="outline" size="sm">
-            <SlidersHorizontal className="size-4" />
-            Customize Columns
-            <ChevronDown className="size-4" />
-          </Button>
         </div>
 
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex items-center gap-4">
           <div className="relative flex-1">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search by name title or amount" className="h-10 pl-9" />
+            <Input placeholder="Search by name or email" className="h-10 pl-9" disabled />
           </div>
-          <Button variant="outline" size="sm">
-            <Download className="size-4" />
-            Download CSV
-          </Button>
         </div>
 
         {isLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Loading clients…</p>
+        ) : users.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No clients found.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="w-8 py-3">
-                  <input type="checkbox" className="accent-brand-deepblue" />
-                </th>
-                <th className="py-3 font-medium">Name &amp; ID</th>
-                <th className="py-3 font-medium">Portfolio Value</th>
+                <th className="py-3 font-medium">Name</th>
+                <th className="py-3 font-medium">Email</th>
                 <th className="py-3 font-medium">Country</th>
-                <th className="py-3 font-medium">KYC Status</th>
+                <th className="py-3 font-medium">Status</th>
                 <th className="py-3 font-medium">Join Date</th>
-                <th className="w-8 py-3" />
+                <th className="w-16 py-3" />
               </tr>
             </thead>
             <tbody>
-              {clients.map(client => (
-                <tr key={client.id} className="border-b border-border last:border-0">
-                  <td className="py-4">
-                    <input type="checkbox" className="accent-brand-deepblue" />
+              {users.map(user => (
+                <tr key={user.id} className="border-b border-border last:border-0">
+                  <td className="py-4 font-medium text-foreground">
+                    {user.firstName} {user.lastName}
                   </td>
-                  <td className="py-4 font-medium text-foreground">{client.name}</td>
-                  <td className="py-4 text-foreground">
-                    ₦{client.portfolio_value.toLocaleString()}
-                  </td>
-                  <td className="py-4 text-muted-foreground">{client.country}</td>
+                  <td className="py-4 text-muted-foreground">{user.email}</td>
+                  <td className="py-4 text-muted-foreground">{user.address?.country ?? "—"}</td>
                   <td className="py-4">
-                    <KycStatusBadge status={client.kyc_status} />
+                    <AdminStatusBadge isActive={user.isActive} />
                   </td>
-                  <td className="py-4 text-muted-foreground">{client.join_date}</td>
+                  <td className="py-4 text-muted-foreground">
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </td>
                   <td className="py-4">
-                    <Link href={`/clients/${client.id}`}>
-                      <Eye className="size-4 text-muted-foreground" />
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link href={`/clients/${user.id}`}>
+                        <Eye className="size-4 text-muted-foreground" />
+                      </Link>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="text-muted-foreground">
+                          <MoreHorizontal className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => toggleStatusMutation.mutate(user.id)}
+                          >
+                            {user.isActive ? "Deactivate" : "Activate"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => deleteMutation.mutate(user.id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -139,10 +178,15 @@ export default function ClientsPage() {
           </table>
         )}
 
-        <div className="mt-6 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing 1-10 of 100 products</p>
-          <Pagination page={page} totalPages={10} onPageChange={setPage} />
-        </div>
+        {total > 0 && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, total)} of {total}{" "}
+              clients
+            </p>
+            <Pagination page={page} totalPages={pages} onPageChange={setPage} />
+          </div>
+        )}
       </div>
     </div>
   )

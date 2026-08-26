@@ -35,6 +35,9 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
 export function Sidebar({ user }: { user?: IUser }) {
   const pathname = usePathname()
+  const visiblePrimaryItems = primaryNavItems.filter(
+    item => !item.restrictedTo || (user && item.restrictedTo.includes(user.role))
+  )
 
   return (
     <aside className="flex h-screen w-[280px] shrink-0 flex-col border-r border-border bg-background">
@@ -43,7 +46,7 @@ export function Sidebar({ user }: { user?: IUser }) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-4">
-        {primaryNavItems.map(item => (
+        {visiblePrimaryItems.map(item => (
           <NavLink
             key={item.href}
             item={item}

@@ -11,10 +11,14 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
+import { AdminRole } from "@/types/admin.types"
+
 export type NavItem = {
   label: string
   href: string
   icon: LucideIcon
+  /** Only show this item to admins with one of these roles; omit to show to all roles. */
+  restrictedTo?: AdminRole[]
 }
 
 export const primaryNavItems: NavItem[] = [
@@ -24,7 +28,12 @@ export const primaryNavItems: NavItem[] = [
   { label: "Client Management", href: "/clients", icon: Users },
   { label: "Website CMS", href: "/cms", icon: LayoutGrid },
   { label: "Analytics", href: "/analytics", icon: LineChart },
-  { label: "Admin Management", href: "/admin-management", icon: UserCog },
+  {
+    label: "Admin Management",
+    href: "/admin-management",
+    icon: UserCog,
+    restrictedTo: ["admin"],
+  },
 ]
 
 export const secondaryNavItems: NavItem[] = [
